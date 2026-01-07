@@ -56,6 +56,10 @@ export async function getAttendance() {
     return await getCollectionData(appwriteConfig.collections.attendance);
 }
 
+export async function getTransactions() {
+    return await getCollectionData(appwriteConfig.collections.transactions);
+}
+
 // --- Mutations ---
 
 export async function deleteItem(type: 'users' | 'tickets' | 'events' | 'attendance', id: string) {

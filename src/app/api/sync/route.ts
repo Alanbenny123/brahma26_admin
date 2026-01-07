@@ -7,7 +7,10 @@ import {
     updateFirestoreEvent,
     deleteFirestoreEvent,
     createFirestoreTicket,
-    createRTDBAttendance,
+    createFirestoreTransaction,
+    updateFirestoreTransaction,
+    deleteFirestoreTransaction,
+    createFirestoreAttendance,
 } from '@/actions/firebase';
 
 export async function POST(request: NextRequest) {
@@ -43,10 +46,20 @@ export async function POST(request: NextRequest) {
                 result = await createFirestoreTicket(data);
             }
         }
+        // Handle Transactions
+        else if (type === 'transactions') {
+            if (action === 'create') {
+                result = await createFirestoreTransaction(data);
+            } else if (action === 'update' && id) {
+                result = await updateFirestoreTransaction(id, data);
+            } else if (action === 'delete' && id) {
+                result = await deleteFirestoreTransaction(id);
+            }
+        }
         // Handle Attendance
         else if (type === 'attendance') {
             if (action === 'create') {
-                result = await createRTDBAttendance(data);
+                result = await createFirestoreAttendance(data);
             }
         }
 

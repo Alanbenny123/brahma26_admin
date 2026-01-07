@@ -64,6 +64,19 @@ export default function SyncPage() {
         }
     };
 
+    const handleSyncTransactions = async () => {
+        setSyncing(true);
+        try {
+            const { syncTransactionsToFirestore } = await import('@/actions/sync');
+            const result = await syncTransactionsToFirestore();
+            setResults({ success: true, results: { transactions: result } });
+        } catch (error) {
+            setResults({ success: false, error: 'Failed to sync transactions' });
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     const handleSyncAttendance = async () => {
         setSyncing(true);
         try {
@@ -149,6 +162,16 @@ export default function SyncPage() {
                         </Button>
 
                         <Button
+                            onClick={handleSyncTransactions}
+                            disabled={syncing}
+                            variant="outline"
+                            className="border-pink-500/50 hover:bg-pink-500/10"
+                        >
+                            <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
+                            Sync Transactions Only
+                        </Button>
+
+                        <Button
                             onClick={handleSyncAttendance}
                             disabled={syncing}
                             variant="outline"
@@ -208,6 +231,16 @@ export default function SyncPage() {
                                         </p>
                                     </div>
                                 )}
+                                {results.results.transactions && (
+                                    <div className="p-4 bg-pink-500/10 rounded-lg">
+                                        <h3 className="font-semibold text-pink-400 mb-2">Transactions</h3>
+                                        <p className="text-white/70">
+                                            Synced: {results.results.transactions.synced} | 
+                                            Failed: {results.results.transactions.failed} | 
+                                            Total: {results.results.transactions.total}
+                                        </p>
+                                    </div>
+                                )}
                                 {results.results.attendance && (
                                     <div className="p-4 bg-green-500/10 rounded-lg">
                                         <h3 className="font-semibold text-green-400 mb-2">Attendance</h3>
@@ -255,6 +288,7 @@ export default function SyncPage() {
                             <li>Prevents duplicates by checking Appwrite IDs</li>
                             <li>Useful for initial data migration</li>
                             <li>Can sync all at once or by collection type</li>
+                            <li>Supports: Users, Events, Tickets, Transactions, Attendance</li>
                         </ul>
                     </div>
 

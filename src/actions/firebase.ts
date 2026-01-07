@@ -185,6 +185,93 @@ export async function createFirestoreTicket(ticketData: any) {
     }
 }
 
+// Transactions Collection
+export async function getFirestoreTransactions() {
+    try {
+        const transactionsRef = collection(db, 'transactions');
+        const snapshot = await getDocs(transactionsRef);
+        const transactions = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        return { transactions, total: transactions.length };
+    } catch (error) {
+        console.error('Error fetching transactions:', error);
+        return { transactions: [], total: 0, error: 'Failed to fetch transactions' };
+    }
+}
+
+export async function createFirestoreTransaction(transactionData: any) {
+    try {
+        const transactionsRef = collection(db, 'transactions');
+        const docRef = await addDoc(transactionsRef, {
+            ...transactionData,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        return { id: docRef.id, success: true };
+    } catch (error) {
+        console.error('Error creating transaction:', error);
+        return { success: false, error: 'Failed to create transaction' };
+    }
+}
+
+export async function updateFirestoreTransaction(transactionId: string, transactionData: any) {
+    try {
+        const transactionRef = doc(db, 'transactions', transactionId);
+        await updateDoc(transactionRef, {
+            ...transactionData,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating transaction:', error);
+        return { success: false, error: 'Failed to update transaction' };
+    }
+}
+
+export async function deleteFirestoreTransaction(transactionId: string) {
+    try {
+        const transactionRef = doc(db, 'transactions', transactionId);
+        await deleteDoc(transactionRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting transaction:', error);
+        return { success: false, error: 'Failed to delete transaction' };
+    }
+}
+
+// Attendance Collection (Firestore)
+export async function getFirestoreAttendance() {
+    try {
+        const attendanceRef = collection(db, 'attendance');
+        const snapshot = await getDocs(attendanceRef);
+        const attendance = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        return { attendance, total: attendance.length };
+    } catch (error) {
+        console.error('Error fetching attendance:', error);
+        return { attendance: [], total: 0, error: 'Failed to fetch attendance' };
+    }
+}
+
+export async function createFirestoreAttendance(attendanceData: any) {
+    try {
+        const attendanceRef = collection(db, 'attendance');
+        const docRef = await addDoc(attendanceRef, {
+            ...attendanceData,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        return { id: docRef.id, success: true };
+    } catch (error) {
+        console.error('Error creating attendance:', error);
+        return { success: false, error: 'Failed to create attendance' };
+    }
+}
+
 // ============= REALTIME DATABASE OPERATIONS =============
 
 // Users in Realtime Database

@@ -18,6 +18,7 @@ export function initializeRealtimeSync() {
     subscribeToUsers();
     subscribeToEvents();
     subscribeToTickets();
+    subscribeToTransactions();
     subscribeToAttendance();
 
     console.log('🔥 Real-time Appwrite → Firebase sync initialized');
@@ -251,6 +252,89 @@ function subscribeToTickets() {
         unsubscribers.push(unsubscribe);
     } catch (error) {
         console.error('Error subscribing to tickets:', error);
+    }
+}
+
+// Subscribe to Transactions collection
+function subscribeToTransactions() {
+    if (!client) return;
+
+    try {
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        
+        const unsubscribe = client.subscribe(
+            `databases.${databaseId}.collections.transaction.documents`,
+            async (response) => {
+                const payload = response.payload as any;
+                const events = response.events;
+
+                console.log('💳 Transaction event:', events[0], payload.$id);
+
+                try {
+                    if (events.some(e => e.includes('create'))) {
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'transactions',
+                                action: 'create',
+                                data: {
+                                    appwriteId: payload.$id,
+                                    transition_id: payload.transition_id,
+                                    user_id: payload.user_id,
+                                    ticket_id: payload.ticket_id,
+                                }
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Transaction synced to Firebase:', payload.$id);
+                        }
+                    } 
+                    else if (events.some(e => e.includes('update'))) {
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'transactions',
+                                action: 'update',
+                                id: payload.$id,
+                                data: {
+                                    transition_id: payload.transition_id,
+                                    user_id: payload.user_id,
+                                    ticket_id: payload.ticket_id,
+                                }
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Transaction updated in Firebase:', payload.$id);
+                        }
+                    }
+                    else if (events.some(e => e.includes('delete'))) {
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'transactions',
+                                action: 'delete',
+                                id: payload.$id,
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Transaction deleted from Firebase:', payload.$id);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error syncing transaction:', error);
+                }
+            }
+        );
+
+        unsubscribers.push(unsubscribe);
+    } catch (error) {
+        console.error('Error subscribing to transactions:', error);
     }
 }
 

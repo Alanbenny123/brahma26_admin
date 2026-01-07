@@ -1,16 +1,19 @@
 'use server';
 
-import { getUsers, getTickets, getEvents, getAttendance } from '@/actions/appwrite';
+import { getUsers, getTickets, getEvents, getAttendance, getTransactions } from '@/actions/appwrite';
 import {
     createFirestoreUser,
     createFirestoreEvent,
     createFirestoreTicket,
-    createRTDBAttendance,
+    createFirestoreTransaction,
+    createFirestoreAttendance,
     getFirestoreUsers,
     updateFirestoreUser,
     deleteFirestoreUser,
     updateFirestoreEvent,
     deleteFirestoreEvent,
+    updateFirestoreTransaction,
+    deleteFirestoreTransaction,
 } from '@/actions/firebase';
 
 // Sync all data from Appwrite to Firebase
@@ -20,6 +23,7 @@ export async function syncAllToFirebase() {
             syncUsersToFirestore(),
             syncEventsToFirestore(),
             syncTicketsToFirestore(),
+            syncTransactionsToFirestore(),
             syncAttendanceToFirestore(),
         ]);
 
@@ -29,7 +33,8 @@ export async function syncAllToFirebase() {
                 users: results[0],
                 events: results[1],
                 tickets: results[2],
-                attendance: results[3],
+                transactions: results[3],
+                attendance: results[4],
             }
         };
     } catch (error) {
@@ -151,6 +156,38 @@ export async function syncTicketsToFirestore() {
     }
 }
 
+// Sync Transactions to Firestore
+export async function syncTransactionsToFirestore() {
+    try {
+        const { documents: appwriteTransactions } = await getTransactions();
+
+        let synced = 0;
+        let failed = 0;
+
+        for (const transaction of appwriteTransactions) {
+            const transactionData = {
+                appwriteId: transaction.$id,
+                transition_id: transaction.transition_id || '',
+                user_id: transaction.user_id || '',
+                ticket_id: transaction.ticket_id || '',
+                createdAt: transaction.$createdAt,
+            };
+
+            const result = await createFirestoreTransaction(transactionData);
+            if (result.success) {
+                synced++;
+            } else {
+                failed++;
+            }
+        }
+
+        return { synced, failed, total: appwriteTransactions.length };
+    } catch (error) {
+        console.error('Error syncing transactions:', error);
+        return { synced: 0, failed: 0, error: 'Failed to sync transactions' };
+    }
+}
+
 // Sync Attendance to Firestore
 export async function syncAttendanceToFirestore() {
     try {
@@ -168,7 +205,7 @@ export async function syncAttendanceToFirestore() {
                 timestamp: attendance.timestamp || attendance.$createdAt,
             };
 
-            const result = await createRTDBAttendance(attendanceData);
+            const result = await createFirestoreAttendance(attendanceData);
             if (result.success) {
                 synced++;
             } else {
@@ -184,7 +221,7 @@ export async function syncAttendanceToFirestore() {
 }
 
 // Sync single item by ID and type
-export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'attendance', appwriteId: string) {
+export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'transactions' | 'attendance', appwriteId: string) {
     try {
         let result;
         
@@ -232,6 +269,19 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'att
             };
             result = await createFirestoreTicket(ticketData);
         }
+        else if (type === 'transactions') {
+            const { documents: transactions } = await getTransactions();
+            const transaction = transactions.find((t: any) => t.$id === appwriteId);
+            if (!transaction) return { success: false, error: 'Transaction not found' };
+            
+            const transactionData = {
+                appwriteId: transaction.$id,
+                transition_id: transaction.transition_id || '',
+                user_id: transaction.user_id || '',
+                ticket_id: transaction.ticket_id || '',
+            };
+            result = await createFirestoreTransaction(transactionData);
+        }
         else if (type === 'attendance') {
             const { documents: attendance } = await getAttendance();
             const record = attendance.find((a: any) => a.$id === appwriteId);
@@ -244,7 +294,7 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'att
                 checked_in: record.checked_in || false,
                 timestamp: record.timestamp || record.$createdAt,
             };
-            result = await createRTDBAttendance(attendanceData);
+            result = await createFirestoreAttendance(attendanceData);
         }
 
         return result || { success: false, error: 'Unknown type' };
