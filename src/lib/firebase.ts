@@ -18,8 +18,10 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 // Initialize Firestore
 const db = getFirestore(app);
 
-// Initialize Realtime Database
-const rtdb = getDatabase(app);
+// Initialize Realtime Database (only if databaseURL exists)
+const rtdb = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL 
+    ? getDatabase(app) 
+    : null;
 
 export { app, db, rtdb };
 

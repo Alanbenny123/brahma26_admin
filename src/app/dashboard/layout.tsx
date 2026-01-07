@@ -2,7 +2,7 @@
 
 import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home } from "lucide-react";
+import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const navItems = [
     { name: "Tickets", href: "/dashboard/tickets", icon: Ticket },
     { name: "Events", href: "/dashboard/events", icon: Calendar },
     { name: "Attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
+    { name: "Sync", href: "/dashboard/sync", icon: RefreshCw },
 ];
 
 export default function DashboardLayout({
