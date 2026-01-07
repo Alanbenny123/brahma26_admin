@@ -233,9 +233,8 @@ function subscribeToTickets() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
-                                    ticket_id: payload.$id, // Appwrite ticket ID
-                                    stud_id: payload.user_id, // References user.$id
-                                    event_id: payload.event_id, // References event.$id
+                                    user_id_appwrite: payload.user_id, // Appwrite user ID - will be mapped to Firebase user doc ID
+                                    event_id_appwrite: payload.event_id, // Appwrite event ID - will be mapped to Firebase event doc ID
                                     ticket_number: payload.ticket_number,
                                     status: payload.status,
                                 }
@@ -284,8 +283,8 @@ function subscribeToTransactions() {
                                 data: {
                                     appwriteId: payload.$id,
                                     transition_id: payload.transition_id,
-                                    stud_id: payload.user_id, // References user.$id
-                                    ticket_id: payload.ticket_id, // References ticket.$id
+                                    user_id_appwrite: payload.user_id, // Appwrite user ID - will be mapped to Firebase user doc ID
+                                    ticket_id_appwrite: payload.ticket_id, // Appwrite ticket ID - will be mapped to Firebase ticket doc ID
                                 }
                             })
                         });
@@ -366,8 +365,8 @@ function subscribeToAttendance() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
-                                    stud_id: payload.user_id, // References user.$id
-                                    event_id: payload.event_id, // References event.$id
+                                    user_id_appwrite: payload.user_id, // Appwrite user ID - will be mapped to Firebase user doc ID
+                                    event_id_appwrite: payload.event_id, // Appwrite event ID - will be mapped to Firebase event doc ID
                                     checked_in: payload.checked_in,
                                     timestamp: payload.timestamp || payload.$createdAt,
                                 }

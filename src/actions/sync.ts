@@ -136,9 +136,8 @@ export async function syncTicketsToFirestore() {
         for (const ticket of appwriteTickets) {
             const ticketData = {
                 appwriteId: ticket.$id,
-                ticket_id: ticket.$id, // Appwrite ticket ID
-                stud_id: ticket.user_id || '', // References user.$id
-                event_id: ticket.event_id || '', // References event.$id
+                user_id_appwrite: ticket.user_id || '', // Appwrite user ID - will be mapped to Firebase user doc ID
+                event_id_appwrite: ticket.event_id || '', // Appwrite event ID - will be mapped to Firebase event doc ID
                 ticket_number: ticket.ticket_number || '',
                 status: ticket.status || '',
                 createdAt: ticket.$createdAt,
@@ -176,8 +175,8 @@ export async function syncTransactionsToFirestore() {
             const transactionData = {
                 appwriteId: transaction.$id,
                 transition_id: transaction.transition_id || '',
-                stud_id: transaction.user_id || '', // References user.$id
-                ticket_id: transaction.ticket_id || '', // References ticket.$id
+                user_id_appwrite: transaction.user_id || '', // Appwrite user ID - will be mapped to Firebase user doc ID
+                ticket_id_appwrite: transaction.ticket_id || '', // Appwrite ticket ID - will be mapped to Firebase ticket doc ID
                 createdAt: transaction.$createdAt,
             };
 
@@ -212,8 +211,8 @@ export async function syncAttendanceToFirestore() {
         for (const attendance of appwriteAttendance) {
             const attendanceData = {
                 appwriteId: attendance.$id,
-                stud_id: attendance.user_id || '', // References user.$id
-                event_id: attendance.event_id || '', // References event.$id
+                user_id_appwrite: attendance.user_id || '', // Appwrite user ID - will be mapped to Firebase user doc ID
+                event_id_appwrite: attendance.event_id || '', // Appwrite event ID - will be mapped to Firebase event doc ID
                 checked_in: attendance.checked_in || false,
                 timestamp: attendance.timestamp || attendance.$createdAt,
             };
@@ -281,9 +280,8 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const ticketData = {
                 appwriteId: ticket.$id,
-                ticket_id: ticket.$id,
-                stud_id: ticket.user_id || '',
-                event_id: ticket.event_id || '',
+                user_id_appwrite: ticket.user_id || '',
+                event_id_appwrite: ticket.event_id || '',
                 ticket_number: ticket.ticket_number || '',
                 status: ticket.status || '',
             };
@@ -297,8 +295,8 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             const transactionData = {
                 appwriteId: transaction.$id,
                 transition_id: transaction.transition_id || '',
-                stud_id: transaction.user_id || '',
-                ticket_id: transaction.ticket_id || '',
+                user_id_appwrite: transaction.user_id || '',
+                ticket_id_appwrite: transaction.ticket_id || '',
             };
             result = await upsertFirestoreTransaction(transactionData);
         }
@@ -309,8 +307,8 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const attendanceData = {
                 appwriteId: record.$id,
-                stud_id: record.user_id || '',
-                event_id: record.event_id || '',
+                user_id_appwrite: record.user_id || '',
+                event_id_appwrite: record.event_id || '',
                 checked_in: record.checked_in || false,
                 timestamp: record.timestamp || record.$createdAt,
             };

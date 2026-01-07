@@ -14,6 +14,7 @@ import {
     orderBy,
     limit,
     Timestamp,
+    setDoc,
 } from 'firebase/firestore';
 import {
     ref,
@@ -35,14 +36,20 @@ async function getDocumentByAppwriteId(collectionName: string, appwriteId: strin
         const snapshot = await getDocs(q);
         
         if (!snapshot.empty) {
-            const doc = snapshot.docs[0];
-            return { exists: true, id: doc.id, data: doc.data() };
+            const docSnap = snapshot.docs[0];
+            return { exists: true, id: docSnap.id, data: docSnap.data() };
         }
         return { exists: false, id: null, data: null };
     } catch (error) {
         console.error('Error checking document:', error);
         return { exists: false, id: null, data: null };
     }
+}
+
+// Helper to get Firebase document ID by Appwrite ID
+export async function getFirebaseIdByAppwriteId(collectionName: string, appwriteId: string) {
+    const result = await getDocumentByAppwriteId(collectionName, appwriteId);
+    return result.id;
 }
 
 // Users Collection
@@ -90,7 +97,7 @@ export async function createFirestoreUser(userData: any) {
     }
 }
 
-// Upsert User (Create or Update)
+// Upsert User (Create or Update) - Returns Firebase document ID
 export async function upsertFirestoreUser(userData: any) {
     try {
         if (!userData.appwriteId) {
@@ -107,7 +114,7 @@ export async function upsertFirestoreUser(userData: any) {
                 ...userData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, success: true, action: 'updated' };
+            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
         } else {
             // Create new user
             const usersRef = collection(db, 'users');
@@ -116,7 +123,7 @@ export async function upsertFirestoreUser(userData: any) {
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, success: true, action: 'created' };
+            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting user:', error);
@@ -206,7 +213,7 @@ export async function deleteFirestoreEvent(eventId: string) {
     }
 }
 
-// Upsert Event (Create or Update)
+// Upsert Event (Create or Update) - Returns Firebase document ID
 export async function upsertFirestoreEvent(eventData: any) {
     try {
         if (!eventData.appwriteId) {
@@ -221,7 +228,7 @@ export async function upsertFirestoreEvent(eventData: any) {
                 ...eventData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, success: true, action: 'updated' };
+            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
         } else {
             const eventsRef = collection(db, 'events');
             const docRef = await addDoc(eventsRef, {
@@ -229,7 +236,7 @@ export async function upsertFirestoreEvent(eventData: any) {
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, success: true, action: 'created' };
+            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting event:', error);
@@ -268,11 +275,26 @@ export async function createFirestoreTicket(ticketData: any) {
     }
 }
 
-// Upsert Ticket (Create or Update)
+// Upsert Ticket (Create or Update) - Returns Firebase document ID
 export async function upsertFirestoreTicket(ticketData: any) {
     try {
         if (!ticketData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
+        }
+
+        // Get Firebase IDs for references
+        if (ticketData.user_id_appwrite) {
+            const userFirebaseId = await getFirebaseIdByAppwriteId('users', ticketData.user_id_appwrite);
+            if (userFirebaseId) {
+                ticketData.stud_id = userFirebaseId; // Firebase user document ID
+            }
+        }
+
+        if (ticketData.event_id_appwrite) {
+            const eventFirebaseId = await getFirebaseIdByAppwriteId('events', ticketData.event_id_appwrite);
+            if (eventFirebaseId) {
+                ticketData.event_id = eventFirebaseId; // Firebase event document ID
+            }
         }
 
         const existing = await getDocumentByAppwriteId('tickets', ticketData.appwriteId);
@@ -283,7 +305,7 @@ export async function upsertFirestoreTicket(ticketData: any) {
                 ...ticketData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, success: true, action: 'updated' };
+            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
         } else {
             const ticketsRef = collection(db, 'tickets');
             const docRef = await addDoc(ticketsRef, {
@@ -291,7 +313,7 @@ export async function upsertFirestoreTicket(ticketData: any) {
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, success: true, action: 'created' };
+            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting ticket:', error);
@@ -355,11 +377,26 @@ export async function deleteFirestoreTransaction(transactionId: string) {
     }
 }
 
-// Upsert Transaction (Create or Update)
+// Upsert Transaction (Create or Update) - Returns Firebase document ID
 export async function upsertFirestoreTransaction(transactionData: any) {
     try {
         if (!transactionData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
+        }
+
+        // Get Firebase IDs for references
+        if (transactionData.user_id_appwrite) {
+            const userFirebaseId = await getFirebaseIdByAppwriteId('users', transactionData.user_id_appwrite);
+            if (userFirebaseId) {
+                transactionData.stud_id = userFirebaseId; // Firebase user document ID
+            }
+        }
+
+        if (transactionData.ticket_id_appwrite) {
+            const ticketFirebaseId = await getFirebaseIdByAppwriteId('tickets', transactionData.ticket_id_appwrite);
+            if (ticketFirebaseId) {
+                transactionData.ticket_id = ticketFirebaseId; // Firebase ticket document ID
+            }
         }
 
         const existing = await getDocumentByAppwriteId('transactions', transactionData.appwriteId);
@@ -370,7 +407,7 @@ export async function upsertFirestoreTransaction(transactionData: any) {
                 ...transactionData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, success: true, action: 'updated' };
+            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
         } else {
             const transactionsRef = collection(db, 'transactions');
             const docRef = await addDoc(transactionsRef, {
@@ -378,7 +415,7 @@ export async function upsertFirestoreTransaction(transactionData: any) {
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, success: true, action: 'created' };
+            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting transaction:', error);
@@ -417,11 +454,26 @@ export async function createFirestoreAttendance(attendanceData: any) {
     }
 }
 
-// Upsert Attendance (Create or Update)
+// Upsert Attendance (Create or Update) - Returns Firebase document ID
 export async function upsertFirestoreAttendance(attendanceData: any) {
     try {
         if (!attendanceData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
+        }
+
+        // Get Firebase IDs for references
+        if (attendanceData.user_id_appwrite) {
+            const userFirebaseId = await getFirebaseIdByAppwriteId('users', attendanceData.user_id_appwrite);
+            if (userFirebaseId) {
+                attendanceData.stud_id = userFirebaseId; // Firebase user document ID
+            }
+        }
+
+        if (attendanceData.event_id_appwrite) {
+            const eventFirebaseId = await getFirebaseIdByAppwriteId('events', attendanceData.event_id_appwrite);
+            if (eventFirebaseId) {
+                attendanceData.event_id = eventFirebaseId; // Firebase event document ID
+            }
         }
 
         const existing = await getDocumentByAppwriteId('attendance', attendanceData.appwriteId);
@@ -432,7 +484,7 @@ export async function upsertFirestoreAttendance(attendanceData: any) {
                 ...attendanceData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, success: true, action: 'updated' };
+            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
         } else {
             const attendanceRef = collection(db, 'attendance');
             const docRef = await addDoc(attendanceRef, {
@@ -440,7 +492,7 @@ export async function upsertFirestoreAttendance(attendanceData: any) {
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, success: true, action: 'created' };
+            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting attendance:', error);
@@ -453,6 +505,7 @@ export async function upsertFirestoreAttendance(attendanceData: any) {
 // Users in Realtime Database
 export async function getRTDBUsers() {
     try {
+        if (!rtdb) return { users: [], total: 0, error: 'Realtime Database not configured' };
         const usersRef = ref(rtdb, 'users');
         const snapshot = await get(usersRef);
         if (snapshot.exists()) {
@@ -472,6 +525,7 @@ export async function getRTDBUsers() {
 
 export async function createRTDBUser(userData: any) {
     try {
+        if (!rtdb) return { success: false, error: 'Realtime Database not configured' };
         const usersRef = ref(rtdb, 'users');
         const newUserRef = push(usersRef);
         await set(newUserRef, {
@@ -488,6 +542,7 @@ export async function createRTDBUser(userData: any) {
 
 export async function updateRTDBUser(userId: string, userData: any) {
     try {
+        if (!rtdb) return { success: false, error: 'Realtime Database not configured' };
         const userRef = ref(rtdb, `users/${userId}`);
         await update(userRef, {
             ...userData,
@@ -502,6 +557,7 @@ export async function updateRTDBUser(userId: string, userData: any) {
 
 export async function deleteRTDBUser(userId: string) {
     try {
+        if (!rtdb) return { success: false, error: 'Realtime Database not configured' };
         const userRef = ref(rtdb, `users/${userId}`);
         await remove(userRef);
         return { success: true };
@@ -514,6 +570,7 @@ export async function deleteRTDBUser(userId: string) {
 // Events in Realtime Database
 export async function getRTDBEvents() {
     try {
+        if (!rtdb) return { events: [], total: 0, error: 'Realtime Database not configured' };
         const eventsRef = ref(rtdb, 'events');
         const snapshot = await get(eventsRef);
         if (snapshot.exists()) {
@@ -533,6 +590,7 @@ export async function getRTDBEvents() {
 
 export async function createRTDBEvent(eventData: any) {
     try {
+        if (!rtdb) return { success: false, error: 'Realtime Database not configured' };
         const eventsRef = ref(rtdb, 'events');
         const newEventRef = push(eventsRef);
         await set(newEventRef, {
@@ -550,6 +608,7 @@ export async function createRTDBEvent(eventData: any) {
 // Attendance in Realtime Database
 export async function getRTDBAttendance() {
     try {
+        if (!rtdb) return { attendance: [], total: 0, error: 'Realtime Database not configured' };
         const attendanceRef = ref(rtdb, 'attendance');
         const snapshot = await get(attendanceRef);
         if (snapshot.exists()) {
@@ -569,6 +628,7 @@ export async function getRTDBAttendance() {
 
 export async function createRTDBAttendance(attendanceData: any) {
     try {
+        if (!rtdb) return { success: false, error: 'Realtime Database not configured' };
         const attendanceRef = ref(rtdb, 'attendance');
         const newAttendanceRef = push(attendanceRef);
         await set(newAttendanceRef, {
@@ -581,4 +641,3 @@ export async function createRTDBAttendance(attendanceData: any) {
         return { success: false, error: 'Failed to create attendance' };
     }
 }
-
