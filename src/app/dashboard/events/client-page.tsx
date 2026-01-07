@@ -446,7 +446,9 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                         if (!header || !allowedKeys.includes(header)) return;
 
                         if (header === "amount") {
-                            item[header] = val || "0";
+                            // Ensure amount is a string and max 50 chars
+                            const amountStr = String(val || "0").trim();
+                            item[header] = amountStr.length > 50 ? amountStr.substring(0, 50) : amountStr;
                         } else if (header === "slots") {
                             item[header] = Number(val.replace(/[^0-9.-]+/g, "")) || 0;
                         } else if (header === "completed") {
@@ -511,6 +513,15 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     // Hash if not already hashed
                     const salt = bcrypt.genSaltSync(10);
                     item.event_pass = bcrypt.hashSync(String(item.event_pass), salt);
+                }
+                // Ensure amount is a string and max 50 chars
+                if (!item.amount || typeof item.amount !== 'string') {
+                    item.amount = "0";
+                } else {
+                    item.amount = String(item.amount).trim();
+                    if (item.amount.length > 50) {
+                        item.amount = item.amount.substring(0, 50);
+                    }
                 }
                 return true;
             });
