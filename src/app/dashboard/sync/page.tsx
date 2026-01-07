@@ -1,13 +1,42 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Database, CheckCircle, XCircle, Zap } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { RefreshCw, Database, CheckCircle, XCircle, Zap, Clock, Timer } from 'lucide-react';
 
 export default function SyncPage() {
     const [syncing, setSyncing] = useState(false);
     const [results, setResults] = useState<any>(null);
+    const [autoSyncEnabled, setAutoSyncEnabled] = useState(false);
+    const [syncInterval, setSyncInterval] = useState(30); // minutes
+    const [nextSyncTime, setNextSyncTime] = useState<string>('');
+    const [lastSyncTime, setLastSyncTime] = useState<string>('');
+
+    // Auto-sync timer
+    useEffect(() => {
+        if (!autoSyncEnabled) return;
+
+        const intervalMs = syncInterval * 60 * 1000; // Convert minutes to milliseconds
+        
+        const timer = setInterval(() => {
+            handleSyncAll();
+        }, intervalMs);
+
+        // Calculate next sync time
+        const updateNextSyncTime = () => {
+            const next = new Date(Date.now() + intervalMs);
+            setNextSyncTime(next.toLocaleTimeString());
+        };
+        updateNextSyncTime();
+        const timeUpdater = setInterval(updateNextSyncTime, 1000);
+
+        return () => {
+            clearInterval(timer);
+            clearInterval(timeUpdater);
+        };
+    }, [autoSyncEnabled, syncInterval]);
 
     const handleSyncAll = async () => {
         setSyncing(true);
@@ -17,11 +46,20 @@ export default function SyncPage() {
             const { syncAllToFirebase } = await import('@/actions/sync');
             const result = await syncAllToFirebase();
             setResults(result);
+            setLastSyncTime(new Date().toLocaleString());
         } catch (error) {
             console.error('Sync error:', error);
             setResults({ success: false, error: 'Sync failed' });
         } finally {
             setSyncing(false);
+        }
+    };
+
+    const toggleAutoSync = () => {
+        setAutoSyncEnabled(!autoSyncEnabled);
+        if (!autoSyncEnabled) {
+            setLastSyncTime('');
+            setNextSyncTime('');
         }
     };
 
@@ -111,6 +149,79 @@ export default function SyncPage() {
                             </p>
                         </div>
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* Auto-Sync Scheduler */}
+            <Card className="glass-card border-blue-500/30 bg-blue-500/5">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl text-white/90">
+                        <Timer className="w-5 h-5 text-blue-400" />
+                        Scheduled Auto-Sync
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-white/80 font-medium">Enable Automatic Sync</p>
+                            <p className="text-white/50 text-sm">Automatically sync all data at regular intervals</p>
+                        </div>
+                        <Button
+                            onClick={toggleAutoSync}
+                            variant={autoSyncEnabled ? "default" : "outline"}
+                            className={autoSyncEnabled ? "bg-green-500 hover:bg-green-400" : ""}
+                        >
+                            {autoSyncEnabled ? 'Enabled' : 'Disabled'}
+                        </Button>
+                    </div>
+
+                    {autoSyncEnabled && (
+                        <div className="space-y-4 pt-4 border-t border-white/10">
+                            <div className="flex items-center gap-4">
+                                <div className="flex-1">
+                                    <label className="text-sm text-white/70 mb-2 block">Sync Interval (minutes)</label>
+                                    <Input
+                                        type="number"
+                                        min="5"
+                                        max="1440"
+                                        value={syncInterval}
+                                        onChange={(e) => setSyncInterval(Number(e.target.value))}
+                                        className="bg-white/5 border-white/10"
+                                    />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="text-sm text-white/70 mb-2 block">Common Intervals</label>
+                                    <div className="flex gap-2">
+                                        <Button size="sm" variant="outline" onClick={() => setSyncInterval(15)}>15m</Button>
+                                        <Button size="sm" variant="outline" onClick={() => setSyncInterval(30)}>30m</Button>
+                                        <Button size="sm" variant="outline" onClick={() => setSyncInterval(60)}>1h</Button>
+                                        <Button size="sm" variant="outline" onClick={() => setSyncInterval(360)}>6h</Button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-lg">
+                                <div>
+                                    <p className="text-xs text-white/50 mb-1">Last Sync</p>
+                                    <p className="text-sm text-white/80 font-mono">
+                                        {lastSyncTime || 'Not synced yet'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-white/50 mb-1">Next Sync</p>
+                                    <p className="text-sm text-white/80 font-mono flex items-center gap-2">
+                                        <Clock className="w-4 h-4" />
+                                        {nextSyncTime || 'Calculating...'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-2 text-amber-400 text-sm">
+                                <span>⚠️</span>
+                                <p>Auto-sync will run in this browser tab. Keep the tab open for continuous syncing.</p>
+                            </div>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
 
