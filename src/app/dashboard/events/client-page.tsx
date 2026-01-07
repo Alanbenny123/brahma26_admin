@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useState } from "react";
-import { Trash2, Edit, Plus, Calendar, BarChart3, Upload } from "lucide-react";
+import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
@@ -706,11 +706,30 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Event Pass</label>
-                        <Input
-                            value={formData.event_pass || ''}
-                            onChange={(e) => setFormData({ ...formData, event_pass: e.target.value })}
-                            required
-                        />
+                        <div className="flex gap-2">
+                            <Input
+                                value={formData.event_pass || ''}
+                                onChange={(e) => setFormData({ ...formData, event_pass: e.target.value })}
+                                placeholder="Auto-generated 8-character pass"
+                                required
+                                readOnly={!selectedItem?.$id} // Read-only for new events, editable for existing
+                                className={!selectedItem?.$id ? "bg-white/10 cursor-not-allowed" : ""}
+                            />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setFormData({ ...formData, event_pass: generateEventPass() });
+                                }}
+                                className="shrink-0"
+                                title="Generate new event pass"
+                            >
+                                <RefreshCw className="w-4 h-4" />
+                            </Button>
+                        </div>
+                        <p className="text-xs text-white/50">
+                            Auto-generated: 8 characters with uppercase, lowercase, numbers, and symbols (@#_)
+                        </p>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Event Rules</label>

@@ -6,12 +6,29 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function generateEventPass() {
-    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Removed similar looking chars like I, O, 0, 1
+    // Character sets
+    const uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const lowercase = "abcdefghijklmnopqrstuvwxyz";
+    const numbers = "0123456789";
+    const symbols = "@#_";
+    
+    // Combine all characters
+    const allChars = uppercase + lowercase + numbers + symbols;
+    
+    // Ensure at least one of each type
     let result = "";
-    for (let i = 0; i < 8; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    result += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    result += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    result += symbols.charAt(Math.floor(Math.random() * symbols.length));
+    
+    // Fill remaining 4 characters randomly from all character sets
+    for (let i = 4; i < 8; i++) {
+        result += allChars.charAt(Math.floor(Math.random() * allChars.length));
     }
-    return result;
+    
+    // Shuffle the result to randomize positions
+    return result.split('').sort(() => Math.random() - 0.5).join('');
 }
 
 export function generateEventId(fest: string) {
