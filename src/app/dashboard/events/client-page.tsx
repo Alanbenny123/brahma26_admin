@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useState } from "react";
 import { Trash2, Edit, Plus, Calendar, BarChart3, Upload } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
@@ -38,6 +39,26 @@ interface ClientEventsPageProps {
     total: number;
     tickets: any[]; // Added tickets for revenue calculation
 }
+
+// Category options for dropdown
+const CATEGORY_OPTIONS = [
+    'Technical',
+    'Cultural',
+    'Sports',
+    'Workshop',
+    'Seminar',
+    'Competition',
+    'Exhibition',
+    'Other'
+];
+
+// Fest options for dropdown
+const FEST_OPTIONS = [
+    'BRAHMA',
+    'ASHWAMEDHA',
+    'BRAHMA26',
+    'Other'
+];
 
 export default function ClientEventsPage({ initialData, total, tickets }: ClientEventsPageProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -623,12 +644,21 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm text-gray-400">Time</label>
+                            <label className="text-sm text-gray-400">Date</label>
                             <Input
-                                value={formData.time || ''}
-                                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                                type="date"
+                                value={formData.date || ''}
+                                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                             />
                         </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">Time</label>
+                        <Input
+                            type="time"
+                            value={formData.time || ''}
+                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                        />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -649,27 +679,43 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             />
                         </div>
                     </div>
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Category</label>
-                        <Input
-                            value={formData.category || ''}
-                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                            required
-                        />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <label className="text-sm text-gray-400">Category</label>
+                            <Select
+                                value={formData.category || ''}
+                                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                                required
+                            >
+                                <option value="">Select Category</option>
+                                {CATEGORY_OPTIONS.map((category) => (
+                                    <option key={category} value={category}>
+                                        {category}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm text-gray-400">Fest (Enum)</label>
+                            <Select
+                                value={formData.fest || ''}
+                                onChange={(e) => setFormData({ ...formData, fest: e.target.value })}
+                                required
+                            >
+                                <option value="">Select Fest</option>
+                                {FEST_OPTIONS.map((fest) => (
+                                    <option key={fest} value={fest}>
+                                        {fest}
+                                    </option>
+                                ))}
+                            </Select>
+                        </div>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Event Pass</label>
                         <Input
                             value={formData.event_pass || ''}
                             onChange={(e) => setFormData({ ...formData, event_pass: e.target.value })}
-                            required
-                        />
-                    </div>
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Fest (Enum)</label>
-                        <Input
-                            value={formData.fest || ''}
-                            onChange={(e) => setFormData({ ...formData, fest: e.target.value })}
                             required
                         />
                     </div>
