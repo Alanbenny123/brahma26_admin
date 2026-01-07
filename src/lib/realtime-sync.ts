@@ -48,7 +48,7 @@ function subscribeToUsers() {
 
                 try {
                     if (events.some(e => e.includes('create'))) {
-                        // New user created in Appwrite → Sync to Firebase
+                        // New user created in Appwrite → Sync to Firebase (upsert prevents duplicates)
                         const response = await fetch('/api/sync', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -57,6 +57,7 @@ function subscribeToUsers() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
+                                    stud_id: payload.$id, // Appwrite user ID
                                     name: payload.name,
                                     email: payload.email,
                                     phone: payload.phone,
@@ -68,7 +69,7 @@ function subscribeToUsers() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ User synced to Firebase:', payload.$id);
+                            console.log('✅ User synced to Firebase:', payload.$id, result.action || '');
                         }
                     } 
                     else if (events.some(e => e.includes('update'))) {
@@ -146,6 +147,7 @@ function subscribeToEvents() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
+                                    event_id: payload.$id, // Appwrite event ID
                                     event_name: payload.event_name,
                                     fest: payload.fest,
                                     date: payload.date,
@@ -155,7 +157,7 @@ function subscribeToEvents() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Event synced to Firebase:', payload.$id);
+                            console.log('✅ Event synced to Firebase:', payload.$id, result.action || '');
                         }
                     } 
                     else if (events.some(e => e.includes('update'))) {
@@ -231,8 +233,9 @@ function subscribeToTickets() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
-                                    user_id: payload.user_id,
-                                    event_id: payload.event_id,
+                                    ticket_id: payload.$id, // Appwrite ticket ID
+                                    stud_id: payload.user_id, // References user.$id
+                                    event_id: payload.event_id, // References event.$id
                                     ticket_number: payload.ticket_number,
                                     status: payload.status,
                                 }
@@ -240,7 +243,7 @@ function subscribeToTickets() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Ticket synced to Firebase:', payload.$id);
+                            console.log('✅ Ticket synced to Firebase:', payload.$id, result.action || '');
                         }
                     }
                 } catch (error) {
@@ -281,14 +284,14 @@ function subscribeToTransactions() {
                                 data: {
                                     appwriteId: payload.$id,
                                     transition_id: payload.transition_id,
-                                    user_id: payload.user_id,
-                                    ticket_id: payload.ticket_id,
+                                    stud_id: payload.user_id, // References user.$id
+                                    ticket_id: payload.ticket_id, // References ticket.$id
                                 }
                             })
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Transaction synced to Firebase:', payload.$id);
+                            console.log('✅ Transaction synced to Firebase:', payload.$id, result.action || '');
                         }
                     } 
                     else if (events.some(e => e.includes('update'))) {
@@ -363,8 +366,8 @@ function subscribeToAttendance() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
-                                    user_id: payload.user_id,
-                                    event_id: payload.event_id,
+                                    stud_id: payload.user_id, // References user.$id
+                                    event_id: payload.event_id, // References event.$id
                                     checked_in: payload.checked_in,
                                     timestamp: payload.timestamp || payload.$createdAt,
                                 }
@@ -372,7 +375,7 @@ function subscribeToAttendance() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Attendance synced to Firebase:', payload.$id);
+                            console.log('✅ Attendance synced to Firebase:', payload.$id, result.action || '');
                         }
                     }
                 } catch (error) {

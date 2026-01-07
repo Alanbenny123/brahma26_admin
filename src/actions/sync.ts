@@ -2,11 +2,11 @@
 
 import { getUsers, getTickets, getEvents, getAttendance, getTransactions } from '@/actions/appwrite';
 import {
-    createFirestoreUser,
-    createFirestoreEvent,
-    createFirestoreTicket,
-    createFirestoreTransaction,
-    createFirestoreAttendance,
+    upsertFirestoreUser,
+    upsertFirestoreEvent,
+    upsertFirestoreTicket,
+    upsertFirestoreTransaction,
+    upsertFirestoreAttendance,
     getFirestoreUsers,
     updateFirestoreUser,
     deleteFirestoreUser,
@@ -43,29 +43,20 @@ export async function syncAllToFirebase() {
     }
 }
 
-// Sync Users to Firestore
+// Sync Users to Firestore (with upsert - no duplicates)
 export async function syncUsersToFirestore() {
     try {
         const { documents: appwriteUsers } = await getUsers();
-        const { users: existingFirestoreUsers } = await getFirestoreUsers();
-
-        // Create a Set of existing Firebase user IDs
-        const existingIds = new Set(existingFirestoreUsers.map((u: any) => u.appwriteId || u.id));
 
         let synced = 0;
-        let skipped = 0;
+        let updated = 0;
         let failed = 0;
 
         for (const user of appwriteUsers) {
-            // Skip if already exists
-            if (existingIds.has(user.$id)) {
-                skipped++;
-                continue;
-            }
-
-            // Clean Appwrite metadata
+            // Clean Appwrite metadata and use stud_id (user.$id)
             const userData = {
                 appwriteId: user.$id,
+                stud_id: user.$id, // Appwrite user ID
                 name: user.name || '',
                 email: user.email || '',
                 phone: user.phone || '',
@@ -75,32 +66,38 @@ export async function syncUsersToFirestore() {
                 createdAt: user.$createdAt,
             };
 
-            const result = await createFirestoreUser(userData);
+            const result = await upsertFirestoreUser(userData);
             if (result.success) {
-                synced++;
+                if (result.action === 'created') {
+                    synced++;
+                } else if (result.action === 'updated') {
+                    updated++;
+                }
             } else {
                 failed++;
             }
         }
 
-        return { synced, skipped, failed, total: appwriteUsers.length };
+        return { synced, updated, failed, total: appwriteUsers.length };
     } catch (error) {
         console.error('Error syncing users:', error);
-        return { synced: 0, skipped: 0, failed: 0, error: 'Failed to sync users' };
+        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync users' };
     }
 }
 
-// Sync Events to Firestore
+// Sync Events to Firestore (with upsert - no duplicates)
 export async function syncEventsToFirestore() {
     try {
         const { documents: appwriteEvents } = await getEvents();
 
         let synced = 0;
+        let updated = 0;
         let failed = 0;
 
         for (const event of appwriteEvents) {
             const eventData = {
                 appwriteId: event.$id,
+                event_id: event.$id, // Appwrite event ID
                 event_name: event.event_name || '',
                 fest: event.fest || '',
                 date: event.date || '',
@@ -108,115 +105,135 @@ export async function syncEventsToFirestore() {
                 createdAt: event.$createdAt,
             };
 
-            const result = await createFirestoreEvent(eventData);
+            const result = await upsertFirestoreEvent(eventData);
             if (result.success) {
-                synced++;
+                if (result.action === 'created') {
+                    synced++;
+                } else if (result.action === 'updated') {
+                    updated++;
+                }
             } else {
                 failed++;
             }
         }
 
-        return { synced, failed, total: appwriteEvents.length };
+        return { synced, updated, failed, total: appwriteEvents.length };
     } catch (error) {
         console.error('Error syncing events:', error);
-        return { synced: 0, failed: 0, error: 'Failed to sync events' };
+        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync events' };
     }
 }
 
-// Sync Tickets to Firestore
+// Sync Tickets to Firestore (with upsert - no duplicates)
 export async function syncTicketsToFirestore() {
     try {
         const { documents: appwriteTickets } = await getTickets();
 
         let synced = 0;
+        let updated = 0;
         let failed = 0;
 
         for (const ticket of appwriteTickets) {
             const ticketData = {
                 appwriteId: ticket.$id,
-                user_id: ticket.user_id || '',
-                event_id: ticket.event_id || '',
+                ticket_id: ticket.$id, // Appwrite ticket ID
+                stud_id: ticket.user_id || '', // References user.$id
+                event_id: ticket.event_id || '', // References event.$id
                 ticket_number: ticket.ticket_number || '',
                 status: ticket.status || '',
                 createdAt: ticket.$createdAt,
             };
 
-            const result = await createFirestoreTicket(ticketData);
+            const result = await upsertFirestoreTicket(ticketData);
             if (result.success) {
-                synced++;
+                if (result.action === 'created') {
+                    synced++;
+                } else if (result.action === 'updated') {
+                    updated++;
+                }
             } else {
                 failed++;
             }
         }
 
-        return { synced, failed, total: appwriteTickets.length };
+        return { synced, updated, failed, total: appwriteTickets.length };
     } catch (error) {
         console.error('Error syncing tickets:', error);
-        return { synced: 0, failed: 0, error: 'Failed to sync tickets' };
+        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync tickets' };
     }
 }
 
-// Sync Transactions to Firestore
+// Sync Transactions to Firestore (with upsert - no duplicates)
 export async function syncTransactionsToFirestore() {
     try {
         const { documents: appwriteTransactions } = await getTransactions();
 
         let synced = 0;
+        let updated = 0;
         let failed = 0;
 
         for (const transaction of appwriteTransactions) {
             const transactionData = {
                 appwriteId: transaction.$id,
                 transition_id: transaction.transition_id || '',
-                user_id: transaction.user_id || '',
-                ticket_id: transaction.ticket_id || '',
+                stud_id: transaction.user_id || '', // References user.$id
+                ticket_id: transaction.ticket_id || '', // References ticket.$id
                 createdAt: transaction.$createdAt,
             };
 
-            const result = await createFirestoreTransaction(transactionData);
+            const result = await upsertFirestoreTransaction(transactionData);
             if (result.success) {
-                synced++;
+                if (result.action === 'created') {
+                    synced++;
+                } else if (result.action === 'updated') {
+                    updated++;
+                }
             } else {
                 failed++;
             }
         }
 
-        return { synced, failed, total: appwriteTransactions.length };
+        return { synced, updated, failed, total: appwriteTransactions.length };
     } catch (error) {
         console.error('Error syncing transactions:', error);
-        return { synced: 0, failed: 0, error: 'Failed to sync transactions' };
+        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync transactions' };
     }
 }
 
-// Sync Attendance to Firestore
+// Sync Attendance to Firestore (with upsert - no duplicates)
 export async function syncAttendanceToFirestore() {
     try {
         const { documents: appwriteAttendance } = await getAttendance();
 
         let synced = 0;
+        let updated = 0;
         let failed = 0;
 
         for (const attendance of appwriteAttendance) {
             const attendanceData = {
                 appwriteId: attendance.$id,
-                user_id: attendance.user_id || '',
-                event_id: attendance.event_id || '',
+                stud_id: attendance.user_id || '', // References user.$id
+                event_id: attendance.event_id || '', // References event.$id
                 checked_in: attendance.checked_in || false,
                 timestamp: attendance.timestamp || attendance.$createdAt,
             };
 
-            const result = await createFirestoreAttendance(attendanceData);
+            const result = await upsertFirestoreAttendance(attendanceData);
             if (result.success) {
-                synced++;
+                if (result.action === 'created') {
+                    synced++;
+                } else if (result.action === 'updated') {
+                    updated++;
+                }
             } else {
                 failed++;
             }
         }
 
-        return { synced, failed, total: appwriteAttendance.length };
+        return { synced, updated, failed, total: appwriteAttendance.length };
     } catch (error) {
         console.error('Error syncing attendance:', error);
-        return { synced: 0, failed: 0, error: 'Failed to sync attendance' };
+        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync attendance' };
     }
 }
 
@@ -232,6 +249,7 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const userData = {
                 appwriteId: user.$id,
+                stud_id: user.$id,
                 name: user.name || '',
                 email: user.email || '',
                 phone: user.phone || '',
@@ -239,7 +257,7 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
                 pass: user.pass || '',
                 certificates: user.certificates || [],
             };
-            result = await createFirestoreUser(userData);
+            result = await upsertFirestoreUser(userData);
         } 
         else if (type === 'events') {
             const { documents: events } = await getEvents();
@@ -248,12 +266,13 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const eventData = {
                 appwriteId: event.$id,
+                event_id: event.$id,
                 event_name: event.event_name || '',
                 fest: event.fest || '',
                 date: event.date || '',
                 description: event.description || '',
             };
-            result = await createFirestoreEvent(eventData);
+            result = await upsertFirestoreEvent(eventData);
         }
         else if (type === 'tickets') {
             const { documents: tickets } = await getTickets();
@@ -262,12 +281,13 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const ticketData = {
                 appwriteId: ticket.$id,
-                user_id: ticket.user_id || '',
+                ticket_id: ticket.$id,
+                stud_id: ticket.user_id || '',
                 event_id: ticket.event_id || '',
                 ticket_number: ticket.ticket_number || '',
                 status: ticket.status || '',
             };
-            result = await createFirestoreTicket(ticketData);
+            result = await upsertFirestoreTicket(ticketData);
         }
         else if (type === 'transactions') {
             const { documents: transactions } = await getTransactions();
@@ -277,10 +297,10 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             const transactionData = {
                 appwriteId: transaction.$id,
                 transition_id: transaction.transition_id || '',
-                user_id: transaction.user_id || '',
+                stud_id: transaction.user_id || '',
                 ticket_id: transaction.ticket_id || '',
             };
-            result = await createFirestoreTransaction(transactionData);
+            result = await upsertFirestoreTransaction(transactionData);
         }
         else if (type === 'attendance') {
             const { documents: attendance } = await getAttendance();
@@ -289,12 +309,12 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             
             const attendanceData = {
                 appwriteId: record.$id,
-                user_id: record.user_id || '',
+                stud_id: record.user_id || '',
                 event_id: record.event_id || '',
                 checked_in: record.checked_in || false,
                 timestamp: record.timestamp || record.$createdAt,
             };
-            result = await createFirestoreAttendance(attendanceData);
+            result = await upsertFirestoreAttendance(attendanceData);
         }
 
         return result || { success: false, error: 'Unknown type' };

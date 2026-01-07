@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
-    createFirestoreUser,
+    upsertFirestoreUser,
     updateFirestoreUser,
     deleteFirestoreUser,
-    createFirestoreEvent,
+    upsertFirestoreEvent,
     updateFirestoreEvent,
     deleteFirestoreEvent,
-    createFirestoreTicket,
-    createFirestoreTransaction,
+    upsertFirestoreTicket,
+    upsertFirestoreTransaction,
     updateFirestoreTransaction,
     deleteFirestoreTransaction,
-    createFirestoreAttendance,
+    upsertFirestoreAttendance,
 } from '@/actions/firebase';
 
 export async function POST(request: NextRequest) {
@@ -20,46 +20,46 @@ export async function POST(request: NextRequest) {
 
         let result;
 
-        // Handle Users
+        // Handle Users (upsert to prevent duplicates)
         if (type === 'users') {
             if (action === 'create') {
-                result = await createFirestoreUser(data);
+                result = await upsertFirestoreUser(data);
             } else if (action === 'update' && id) {
                 result = await updateFirestoreUser(id, data);
             } else if (action === 'delete' && id) {
                 result = await deleteFirestoreUser(id);
             }
         }
-        // Handle Events
+        // Handle Events (upsert to prevent duplicates)
         else if (type === 'events') {
             if (action === 'create') {
-                result = await createFirestoreEvent(data);
+                result = await upsertFirestoreEvent(data);
             } else if (action === 'update' && id) {
                 result = await updateFirestoreEvent(id, data);
             } else if (action === 'delete' && id) {
                 result = await deleteFirestoreEvent(id);
             }
         }
-        // Handle Tickets
+        // Handle Tickets (upsert to prevent duplicates)
         else if (type === 'tickets') {
             if (action === 'create') {
-                result = await createFirestoreTicket(data);
+                result = await upsertFirestoreTicket(data);
             }
         }
-        // Handle Transactions
+        // Handle Transactions (upsert to prevent duplicates)
         else if (type === 'transactions') {
             if (action === 'create') {
-                result = await createFirestoreTransaction(data);
+                result = await upsertFirestoreTransaction(data);
             } else if (action === 'update' && id) {
                 result = await updateFirestoreTransaction(id, data);
             } else if (action === 'delete' && id) {
                 result = await deleteFirestoreTransaction(id);
             }
         }
-        // Handle Attendance
+        // Handle Attendance (upsert to prevent duplicates)
         else if (type === 'attendance') {
             if (action === 'create') {
-                result = await createFirestoreAttendance(data);
+                result = await upsertFirestoreAttendance(data);
             }
         }
 

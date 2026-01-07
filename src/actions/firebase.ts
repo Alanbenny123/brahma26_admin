@@ -27,6 +27,24 @@ import {
 
 // ============= FIRESTORE OPERATIONS =============
 
+// Helper function to check if document exists by appwriteId
+async function getDocumentByAppwriteId(collectionName: string, appwriteId: string) {
+    try {
+        const collectionRef = collection(db, collectionName);
+        const q = query(collectionRef, where('appwriteId', '==', appwriteId), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+            const doc = snapshot.docs[0];
+            return { exists: true, id: doc.id, data: doc.data() };
+        }
+        return { exists: false, id: null, data: null };
+    } catch (error) {
+        console.error('Error checking document:', error);
+        return { exists: false, id: null, data: null };
+    }
+}
+
 // Users Collection
 export async function getFirestoreUsers() {
     try {
@@ -69,6 +87,40 @@ export async function createFirestoreUser(userData: any) {
     } catch (error) {
         console.error('Error creating user:', error);
         return { success: false, error: 'Failed to create user' };
+    }
+}
+
+// Upsert User (Create or Update)
+export async function upsertFirestoreUser(userData: any) {
+    try {
+        if (!userData.appwriteId) {
+            return { success: false, error: 'appwriteId is required' };
+        }
+
+        // Check if user already exists
+        const existing = await getDocumentByAppwriteId('users', userData.appwriteId);
+
+        if (existing.exists && existing.id) {
+            // Update existing user
+            const userRef = doc(db, 'users', existing.id);
+            await updateDoc(userRef, {
+                ...userData,
+                updatedAt: Timestamp.now(),
+            });
+            return { id: existing.id, success: true, action: 'updated' };
+        } else {
+            // Create new user
+            const usersRef = collection(db, 'users');
+            const docRef = await addDoc(usersRef, {
+                ...userData,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            return { id: docRef.id, success: true, action: 'created' };
+        }
+    } catch (error) {
+        console.error('Error upserting user:', error);
+        return { success: false, error: 'Failed to upsert user' };
     }
 }
 
@@ -154,6 +206,37 @@ export async function deleteFirestoreEvent(eventId: string) {
     }
 }
 
+// Upsert Event (Create or Update)
+export async function upsertFirestoreEvent(eventData: any) {
+    try {
+        if (!eventData.appwriteId) {
+            return { success: false, error: 'appwriteId is required' };
+        }
+
+        const existing = await getDocumentByAppwriteId('events', eventData.appwriteId);
+
+        if (existing.exists && existing.id) {
+            const eventRef = doc(db, 'events', existing.id);
+            await updateDoc(eventRef, {
+                ...eventData,
+                updatedAt: Timestamp.now(),
+            });
+            return { id: existing.id, success: true, action: 'updated' };
+        } else {
+            const eventsRef = collection(db, 'events');
+            const docRef = await addDoc(eventsRef, {
+                ...eventData,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            return { id: docRef.id, success: true, action: 'created' };
+        }
+    } catch (error) {
+        console.error('Error upserting event:', error);
+        return { success: false, error: 'Failed to upsert event' };
+    }
+}
+
 // Tickets Collection
 export async function getFirestoreTickets() {
     try {
@@ -182,6 +265,37 @@ export async function createFirestoreTicket(ticketData: any) {
     } catch (error) {
         console.error('Error creating ticket:', error);
         return { success: false, error: 'Failed to create ticket' };
+    }
+}
+
+// Upsert Ticket (Create or Update)
+export async function upsertFirestoreTicket(ticketData: any) {
+    try {
+        if (!ticketData.appwriteId) {
+            return { success: false, error: 'appwriteId is required' };
+        }
+
+        const existing = await getDocumentByAppwriteId('tickets', ticketData.appwriteId);
+
+        if (existing.exists && existing.id) {
+            const ticketRef = doc(db, 'tickets', existing.id);
+            await updateDoc(ticketRef, {
+                ...ticketData,
+                updatedAt: Timestamp.now(),
+            });
+            return { id: existing.id, success: true, action: 'updated' };
+        } else {
+            const ticketsRef = collection(db, 'tickets');
+            const docRef = await addDoc(ticketsRef, {
+                ...ticketData,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            return { id: docRef.id, success: true, action: 'created' };
+        }
+    } catch (error) {
+        console.error('Error upserting ticket:', error);
+        return { success: false, error: 'Failed to upsert ticket' };
     }
 }
 
@@ -241,6 +355,37 @@ export async function deleteFirestoreTransaction(transactionId: string) {
     }
 }
 
+// Upsert Transaction (Create or Update)
+export async function upsertFirestoreTransaction(transactionData: any) {
+    try {
+        if (!transactionData.appwriteId) {
+            return { success: false, error: 'appwriteId is required' };
+        }
+
+        const existing = await getDocumentByAppwriteId('transactions', transactionData.appwriteId);
+
+        if (existing.exists && existing.id) {
+            const transactionRef = doc(db, 'transactions', existing.id);
+            await updateDoc(transactionRef, {
+                ...transactionData,
+                updatedAt: Timestamp.now(),
+            });
+            return { id: existing.id, success: true, action: 'updated' };
+        } else {
+            const transactionsRef = collection(db, 'transactions');
+            const docRef = await addDoc(transactionsRef, {
+                ...transactionData,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            return { id: docRef.id, success: true, action: 'created' };
+        }
+    } catch (error) {
+        console.error('Error upserting transaction:', error);
+        return { success: false, error: 'Failed to upsert transaction' };
+    }
+}
+
 // Attendance Collection (Firestore)
 export async function getFirestoreAttendance() {
     try {
@@ -269,6 +414,37 @@ export async function createFirestoreAttendance(attendanceData: any) {
     } catch (error) {
         console.error('Error creating attendance:', error);
         return { success: false, error: 'Failed to create attendance' };
+    }
+}
+
+// Upsert Attendance (Create or Update)
+export async function upsertFirestoreAttendance(attendanceData: any) {
+    try {
+        if (!attendanceData.appwriteId) {
+            return { success: false, error: 'appwriteId is required' };
+        }
+
+        const existing = await getDocumentByAppwriteId('attendance', attendanceData.appwriteId);
+
+        if (existing.exists && existing.id) {
+            const attendanceRef = doc(db, 'attendance', existing.id);
+            await updateDoc(attendanceRef, {
+                ...attendanceData,
+                updatedAt: Timestamp.now(),
+            });
+            return { id: existing.id, success: true, action: 'updated' };
+        } else {
+            const attendanceRef = collection(db, 'attendance');
+            const docRef = await addDoc(attendanceRef, {
+                ...attendanceData,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            return { id: docRef.id, success: true, action: 'created' };
+        }
+    } catch (error) {
+        console.error('Error upserting attendance:', error);
+        return { success: false, error: 'Failed to upsert attendance' };
     }
 }
 

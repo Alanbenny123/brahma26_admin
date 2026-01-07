@@ -204,8 +204,8 @@ export default function SyncPage() {
                                     <div className="p-4 bg-cyan-500/10 rounded-lg">
                                         <h3 className="font-semibold text-cyan-400 mb-2">Users</h3>
                                         <p className="text-white/70">
-                                            Synced: {results.results.users.synced} | 
-                                            Skipped: {results.results.users.skipped} | 
+                                            Created: {results.results.users.synced} | 
+                                            Updated: {results.results.users.updated} | 
                                             Failed: {results.results.users.failed} | 
                                             Total: {results.results.users.total}
                                         </p>
@@ -215,7 +215,8 @@ export default function SyncPage() {
                                     <div className="p-4 bg-amber-500/10 rounded-lg">
                                         <h3 className="font-semibold text-amber-400 mb-2">Events</h3>
                                         <p className="text-white/70">
-                                            Synced: {results.results.events.synced} | 
+                                            Created: {results.results.events.synced} | 
+                                            Updated: {results.results.events.updated} | 
                                             Failed: {results.results.events.failed} | 
                                             Total: {results.results.events.total}
                                         </p>
@@ -225,7 +226,8 @@ export default function SyncPage() {
                                     <div className="p-4 bg-purple-500/10 rounded-lg">
                                         <h3 className="font-semibold text-purple-400 mb-2">Tickets</h3>
                                         <p className="text-white/70">
-                                            Synced: {results.results.tickets.synced} | 
+                                            Created: {results.results.tickets.synced} | 
+                                            Updated: {results.results.tickets.updated} | 
                                             Failed: {results.results.tickets.failed} | 
                                             Total: {results.results.tickets.total}
                                         </p>
@@ -235,7 +237,8 @@ export default function SyncPage() {
                                     <div className="p-4 bg-pink-500/10 rounded-lg">
                                         <h3 className="font-semibold text-pink-400 mb-2">Transactions</h3>
                                         <p className="text-white/70">
-                                            Synced: {results.results.transactions.synced} | 
+                                            Created: {results.results.transactions.synced} | 
+                                            Updated: {results.results.transactions.updated} | 
                                             Failed: {results.results.transactions.failed} | 
                                             Total: {results.results.transactions.total}
                                         </p>
@@ -245,7 +248,8 @@ export default function SyncPage() {
                                     <div className="p-4 bg-green-500/10 rounded-lg">
                                         <h3 className="font-semibold text-green-400 mb-2">Attendance</h3>
                                         <p className="text-white/70">
-                                            Synced: {results.results.attendance.synced} | 
+                                            Created: {results.results.attendance.synced} | 
+                                            Updated: {results.results.attendance.updated} | 
                                             Failed: {results.results.attendance.failed} | 
                                             Total: {results.results.attendance.total}
                                         </p>
