@@ -112,6 +112,7 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 
 - **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration guide
 - **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** - Image storage strategy (Firebase Storage)
+- **[DATA_FETCHING_STRATEGY.md](./DATA_FETCHING_STRATEGY.md)** - Smart data fetching with fallback
 - **[REALTIME_SYNC_SETUP.md](./REALTIME_SYNC_SETUP.md)** - Real-time sync technical details
 - **[QUICK_START.md](./QUICK_START.md)** - Quick start guide for sync
 
@@ -124,22 +125,30 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 
 ## Database & Storage Strategy
 
-### Dual Storage Architecture
+### Dual Storage Architecture with Smart Fallback
+
+**Data Fetching Logic:**
+1. **Check Appwrite** availability first
+2. If available → Fetch from **Appwrite** (primary source)
+3. If unavailable → Fetch from **Firebase** (fallback source)
+4. Return data + source information for monitoring
 
 **Non-Image Data:**
 - Stored in **Appwrite** (primary source of truth)
 - Auto-synced to **Firebase Firestore** in real-time
+- Fetched with automatic fallback logic
 
 **Image Data:**
 - Uploaded directly to **Firebase Storage**
 - URLs stored in Appwrite and synced to Firestore
 
 ### Why This Strategy?
-1. ✅ **Performance** - Images served via Firebase CDN
-2. ✅ **Real-time Sync** - Automatic synchronization from Appwrite to Firebase
-3. ✅ **Scalability** - Firebase Storage scales automatically
-4. ✅ **Cost Effective** - Pay only for what you use
-5. ✅ **Single Source** - Appwrite remains primary database
+1. ✅ **High Availability** - Automatic fallback ensures no downtime
+2. ✅ **Performance** - Images served via Firebase CDN
+3. ✅ **Real-time Sync** - Automatic synchronization from Appwrite to Firebase
+4. ✅ **Scalability** - Firebase Storage scales automatically
+5. ✅ **Cost Effective** - Pay only for what you use
+6. ✅ **Observability** - Always know which source is serving data
 
 ### Image Types Supported
 - 📜 **Certificates** - User achievement certificates
@@ -147,7 +156,25 @@ NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 - 🖼️ **Event Images** - Event banners and posters
 - 👤 **Profile Images** - User profile pictures
 
-### Usage Example
+### Data Fetching Example
+```typescript
+// Smart fetch with automatic fallback
+import { fetchUsers } from '@/actions/data-fetcher';
+
+const { users, total, source } = await fetchUsers();
+console.log(`Fetched ${total} users from ${source}`); 
+// source: 'appwrite' (primary) or 'firebase' (fallback)
+
+// Use the data - images are already URLs
+users.forEach(user => {
+    console.log(user.name, user.email);
+    user.certificates.forEach(url => {
+        // Display certificate image from Firebase Storage
+    });
+});
+```
+
+### Image Upload Example
 ```typescript
 // 1. Upload image to Firebase Storage
 import { uploadCertificate } from '@/actions/storage';
@@ -155,20 +182,14 @@ const result = await uploadCertificate(file, userId);
 
 // 2. Store data in Appwrite with image URL
 await appwriteDatabase.createDocument(
-    databaseId,
-    'users',
-    userId,
-    {
-        name: 'John Doe',
-        certificates: [result.url], // Store URL
-    }
+    databaseId, 'users', userId,
+    { name: 'John Doe', certificates: [result.url] }
 );
 
 // 3. Auto-sync handles the rest!
-// Real-time sync automatically syncs to Firebase Firestore
 ```
 
-See **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** for detailed documentation.
+See **[DATA_FETCHING_STRATEGY.md](./DATA_FETCHING_STRATEGY.md)** and **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** for detailed documentation.
 
 ## Authentication Flow
 
