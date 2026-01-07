@@ -10,7 +10,9 @@ Admin operations dashboard for Brahma Ashwamedha built with Next.js, Firebase, a
 - 📅 **Events Management** - Create and manage events
 - ✅ **Attendance Tracking** - Monitor event attendance
 - 🔥 **Firebase Integration** - Firestore & Realtime Database support
+- 📦 **Firebase Storage** - Direct image storage with CDN delivery
 - ☁️ **Appwrite Backend** - Alternative backend support
+- 🔄 **Real-time Sync** - Auto-sync from Appwrite to Firebase
 
 ## Tech Stack
 
@@ -61,24 +63,30 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ```
 brahma26-admin/
 ├── src/
-│   ├── actions/          # Server actions
-│   │   ├── auth.ts       # Authentication logic
-│   │   ├── firebase.ts   # Firebase operations
-│   │   └── appwrite.ts   # Appwrite operations
-│   ├── app/              # Next.js app router pages
-│   │   ├── dashboard/    # Dashboard pages
-│   │   ├── login/        # Login page
-│   │   └── page.tsx      # Home page
-│   ├── components/       # React components
-│   │   ├── dashboard/    # Dashboard-specific components
-│   │   └── ui/           # Reusable UI components
-│   ├── lib/              # Utility libraries
-│   │   ├── firebase.ts   # Firebase configuration
-│   │   ├── appwrite.ts   # Appwrite configuration
-│   │   └── utils.ts      # Helper functions
-│   └── middleware.ts     # Auth middleware
-├── public/               # Static assets
-└── FIREBASE_SETUP.md     # Firebase setup guide
+│   ├── actions/              # Server actions
+│   │   ├── auth.ts           # Authentication logic
+│   │   ├── firebase.ts       # Firebase operations
+│   │   ├── storage.ts        # Firebase Storage operations
+│   │   ├── appwrite.ts       # Appwrite operations
+│   │   └── sync.ts           # Sync operations
+│   ├── app/                  # Next.js app router pages
+│   │   ├── dashboard/        # Dashboard pages
+│   │   ├── login/            # Login page
+│   │   └── page.tsx          # Home page
+│   ├── components/           # React components
+│   │   ├── dashboard/        # Dashboard-specific components
+│   │   ├── ui/               # Reusable UI components
+│   │   └── realtime-sync-provider.tsx # Real-time sync provider
+│   ├── lib/                  # Utility libraries
+│   │   ├── firebase.ts       # Firebase configuration
+│   │   ├── appwrite.ts       # Appwrite configuration
+│   │   ├── client-storage.ts # Client-side storage utilities
+│   │   ├── realtime-sync.ts  # Real-time sync logic
+│   │   └── utils.ts          # Helper functions
+│   └── middleware.ts         # Auth middleware
+├── public/                   # Static assets
+├── FIREBASE_SETUP.md         # Firebase setup guide
+└── STORAGE_STRATEGY.md       # Image storage strategy guide
 ```
 
 ## Environment Variables
@@ -100,9 +108,12 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
 ```
 
-## Firebase Setup
+## Documentation
 
-For detailed Firebase setup instructions, see [FIREBASE_SETUP.md](./FIREBASE_SETUP.md)
+- **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration guide
+- **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** - Image storage strategy (Firebase Storage)
+- **[REALTIME_SYNC_SETUP.md](./REALTIME_SYNC_SETUP.md)** - Real-time sync technical details
+- **[QUICK_START.md](./QUICK_START.md)** - Quick start guide for sync
 
 ## Available Scripts
 
@@ -111,22 +122,53 @@ For detailed Firebase setup instructions, see [FIREBASE_SETUP.md](./FIREBASE_SET
 - `npm run start` - Start production server
 - `npm run lint` - Run ESLint
 
-## Database Options
+## Database & Storage Strategy
 
-This project supports both Firebase and Appwrite:
+### Dual Storage Architecture
 
-### Firebase
-- **Firestore** - Document database for structured data
-- **Realtime Database** - Real-time synchronization for live data
+**Non-Image Data:**
+- Stored in **Appwrite** (primary source of truth)
+- Auto-synced to **Firebase Firestore** in real-time
 
-### Appwrite
-- Alternative backend option
-- Already configured in the project
+**Image Data:**
+- Uploaded directly to **Firebase Storage**
+- URLs stored in Appwrite and synced to Firestore
 
-Import Firebase functions:
+### Why This Strategy?
+1. ✅ **Performance** - Images served via Firebase CDN
+2. ✅ **Real-time Sync** - Automatic synchronization from Appwrite to Firebase
+3. ✅ **Scalability** - Firebase Storage scales automatically
+4. ✅ **Cost Effective** - Pay only for what you use
+5. ✅ **Single Source** - Appwrite remains primary database
+
+### Image Types Supported
+- 📜 **Certificates** - User achievement certificates
+- 🔲 **QR Codes** - Ticket QR codes for scanning
+- 🖼️ **Event Images** - Event banners and posters
+- 👤 **Profile Images** - User profile pictures
+
+### Usage Example
 ```typescript
-import { getFirestoreUsers, createRTDBEvent } from '@/actions/firebase';
+// 1. Upload image to Firebase Storage
+import { uploadCertificate } from '@/actions/storage';
+const result = await uploadCertificate(file, userId);
+
+// 2. Store data in Appwrite with image URL
+await appwriteDatabase.createDocument(
+    databaseId,
+    'users',
+    userId,
+    {
+        name: 'John Doe',
+        certificates: [result.url], // Store URL
+    }
+);
+
+// 3. Auto-sync handles the rest!
+// Real-time sync automatically syncs to Firebase Firestore
 ```
+
+See **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** for detailed documentation.
 
 ## Authentication Flow
 

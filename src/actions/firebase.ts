@@ -98,6 +98,8 @@ export async function createFirestoreUser(userData: any) {
 }
 
 // Upsert User (Create or Update) - Uses Appwrite ID as Firebase document ID
+// Note: Images (certificates) should be uploaded to Firebase Storage first
+// and only the URLs should be stored in Firestore
 export async function upsertFirestoreUser(userData: any) {
     try {
         if (!userData.appwriteId) {
@@ -108,6 +110,11 @@ export async function upsertFirestoreUser(userData: any) {
         const userDocId = userData.appwriteId;
         const userRef = doc(db, 'users', userDocId);
         
+        // Ensure certificates is an array of URLs (not files)
+        const certificateUrls = Array.isArray(userData.certificates) 
+            ? userData.certificates 
+            : [];
+        
         // Check if document exists
         const docSnap = await getDoc(userRef);
 
@@ -115,6 +122,7 @@ export async function upsertFirestoreUser(userData: any) {
             // Update existing user
             await updateDoc(userRef, {
                 ...userData,
+                certificates: certificateUrls, // Store URLs only
                 updatedAt: Timestamp.now(),
             });
             return { id: userDocId, firebaseId: userDocId, success: true, action: 'updated' };
@@ -122,6 +130,7 @@ export async function upsertFirestoreUser(userData: any) {
             // Create new user with specific document ID
             await setDoc(userRef, {
                 ...userData,
+                certificates: certificateUrls, // Store URLs only
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
@@ -216,6 +225,8 @@ export async function deleteFirestoreEvent(eventId: string) {
 }
 
 // Upsert Event (Create or Update) - Uses Appwrite ID as Firebase document ID
+// Note: Event images should be uploaded to Firebase Storage first
+// and only the URL should be stored in Firestore
 export async function upsertFirestoreEvent(eventData: any) {
     try {
         if (!eventData.appwriteId) {
@@ -226,6 +237,9 @@ export async function upsertFirestoreEvent(eventData: any) {
         const eventDocId = eventData.appwriteId;
         const eventRef = doc(db, 'events', eventDocId);
         
+        // If image URL is provided, store it; otherwise keep existing or set to null
+        const imageUrl = eventData.imageUrl || eventData.image || null;
+        
         // Check if document exists
         const docSnap = await getDoc(eventRef);
 
@@ -233,6 +247,7 @@ export async function upsertFirestoreEvent(eventData: any) {
             // Update existing event
             await updateDoc(eventRef, {
                 ...eventData,
+                imageUrl: imageUrl, // Store image URL
                 updatedAt: Timestamp.now(),
             });
             return { id: eventDocId, firebaseId: eventDocId, success: true, action: 'updated' };
@@ -240,6 +255,7 @@ export async function upsertFirestoreEvent(eventData: any) {
             // Create new event with specific document ID
             await setDoc(eventRef, {
                 ...eventData,
+                imageUrl: imageUrl, // Store image URL
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
@@ -283,6 +299,8 @@ export async function createFirestoreTicket(ticketData: any) {
 }
 
 // Upsert Ticket (Create or Update) - Uses Appwrite ID as Firebase document ID
+// Note: QR codes should be uploaded to Firebase Storage first
+// and only the URL should be stored in Firestore
 export async function upsertFirestoreTicket(ticketData: any) {
     try {
         if (!ticketData.appwriteId) {
@@ -298,6 +316,9 @@ export async function upsertFirestoreTicket(ticketData: any) {
             ticketData.event_id = ticketData.event_id_appwrite; // Appwrite event ID = Firebase event doc ID
         }
 
+        // QR code URL
+        const qrCodeUrl = ticketData.qrCodeUrl || ticketData.qr_code || null;
+
         // Use Appwrite ID as the Firebase document ID
         const ticketDocId = ticketData.appwriteId;
         const ticketRef = doc(db, 'tickets', ticketDocId);
@@ -309,6 +330,7 @@ export async function upsertFirestoreTicket(ticketData: any) {
             // Update existing ticket
             await updateDoc(ticketRef, {
                 ...ticketData,
+                qrCodeUrl: qrCodeUrl, // Store QR code URL
                 updatedAt: Timestamp.now(),
             });
             return { id: ticketDocId, firebaseId: ticketDocId, success: true, action: 'updated' };
@@ -316,6 +338,7 @@ export async function upsertFirestoreTicket(ticketData: any) {
             // Create new ticket with specific document ID
             await setDoc(ticketRef, {
                 ...ticketData,
+                qrCodeUrl: qrCodeUrl, // Store QR code URL
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });

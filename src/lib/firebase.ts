@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import { getDatabase } from 'firebase/database';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -23,5 +24,8 @@ const rtdb = process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL
     ? getDatabase(app) 
     : null;
 
-export { app, db, rtdb };
+// Initialize Firebase Storage
+const storage = getStorage(app);
+
+export { app, db, rtdb, storage };
 
