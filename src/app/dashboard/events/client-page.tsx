@@ -470,11 +470,18 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     item.coordinator = tempCoordinators;
                     item.phone_number = Array.from(new Set(tempPhones)).join(", ");
 
-                    // Handle password and hashing: No automatic generation
+                    // Handle password: Generate if missing, then hash
+                    if (!item.event_pass || item.event_pass.trim() === '') {
+                        // Generate unique event pass if not provided
+                        item.event_pass = generateEventPass();
+                    }
+                    
+                    // Hash the password if it's not already hashed
                     if (item.event_pass && !item.event_pass.startsWith('$2')) {
                         const salt = bcrypt.genSaltSync(10);
                         item.event_pass = bcrypt.hashSync(String(item.event_pass), salt);
                     }
+                    
                     if (!item.event_rules) item.event_rules = "TBA";
                     if (!item.category) item.category = "GENERAL";
                     if (!item.fest) item.fest = "GENERAL";
@@ -489,7 +496,25 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 });
 
             // Filter out rows missing event_name (like junk rows at the end)
-            const dataToUpload = processedItems.filter(item => item.event_name && item.event_name.trim() !== "");
+            const dataToUpload = processedItems.filter(item => {
+                // Ensure event_name exists
+                if (!item.event_name || item.event_name.trim() === '') {
+                    return false;
+                }
+                // Ensure event_pass exists and is hashed (safety check)
+                if (!item.event_pass || item.event_pass.trim() === '') {
+                    // Generate and hash if somehow missing
+                    const newPass = generateEventPass();
+                    const salt = bcrypt.genSaltSync(10);
+                    item.event_pass = bcrypt.hashSync(newPass, salt);
+                } else if (!item.event_pass.startsWith('$2')) {
+                    // Hash if not already hashed
+                    const salt = bcrypt.genSaltSync(10);
+                    item.event_pass = bcrypt.hashSync(String(item.event_pass), salt);
+                }
+                return true;
+            });
+            
             const skippedCount = processedItems.length - dataToUpload.length;
 
             if (dataToUpload.length === 0) {
