@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useState } from "react";
-import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "lucide-react";
+import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw, Download } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
@@ -58,6 +58,8 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<EventType | null>(null);
     const [formData, setFormData] = useState<Partial<EventType>>({});
+    const [plainPassword, setPlainPassword] = useState<string | null>(null); // Store plain password temporarily
+    const [passwordDownloaded, setPasswordDownloaded] = useState<boolean>(false); // Track if downloaded
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -128,7 +130,17 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const handleEditClick = (item: any) => {
         setSelectedItem(item);
         setFormData(item);
+        setPlainPassword(null);
+        setPasswordDownloaded(false);
         setIsEditOpen(true);
+    };
+
+    const handleCloseForm = () => {
+        setIsEditOpen(false);
+        setSelectedItem(null);
+        setFormData({});
+        setPlainPassword(null);
+        setPasswordDownloaded(false);
     };
 
     const confirmDelete = async () => {
@@ -139,8 +151,62 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         }
     };
 
+    // Check if event pass is unique by comparing with existing events
+    const isEventPassUnique = (plainPass: string, excludeEventId?: string): boolean => {
+        if (!plainPass) return false;
+        
+        // Hash the plain password to compare with existing hashed passwords
+        const salt = bcrypt.genSaltSync(10);
+        const hashedPass = bcrypt.hashSync(plainPass, salt);
+        
+        // Check against all existing events (excluding current event if editing)
+        return !initialData.some(event => {
+            if (excludeEventId && event.$id === excludeEventId) return false;
+            // Compare hashed passwords
+            if (event.event_pass && bcrypt.compareSync(plainPass, event.event_pass)) {
+                return true;
+            }
+            return false;
+        });
+    };
+
+    // Download plain password as text file (one-time only)
+    const downloadPassword = () => {
+        if (!plainPassword || passwordDownloaded) return;
+        
+        const eventName = formData.event_name || 'Event';
+        const content = `Event: ${eventName}\nEvent Pass: ${plainPassword}\n\nGenerated: ${new Date().toLocaleString()}\n\n⚠️ IMPORTANT: This password can only be downloaded once. Please save it securely.`;
+        
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `event-pass-${eventName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        setPasswordDownloaded(true);
+        // Clear plain password and close form after download
+        setTimeout(() => {
+            setPlainPassword(null);
+            handleCloseForm();
+        }, 500);
+    };
+
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Check uniqueness if this is a new event pass
+        const plainPass = formData.event_pass;
+        if (plainPass && !plainPass.startsWith('$2')) {
+            // Check if password is unique
+            if (!isEventPassUnique(plainPass, selectedItem?.$id)) {
+                alert('Event pass already exists. Please generate a new one.');
+                return;
+            }
+        }
 
         // Ensure numbers are numbers and arrays are arrays
         const dataToSave: any = {
@@ -154,6 +220,11 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
         // Handle password hashing: Only hash if event_pass is provided and not already hashed
         if (dataToSave.event_pass && !dataToSave.event_pass.startsWith('$2')) {
+            // Store plain password temporarily for download (only for new events)
+            if (!selectedItem?.$id) {
+                setPlainPassword(dataToSave.event_pass);
+                setPasswordDownloaded(false);
+            }
             const salt = bcrypt.genSaltSync(10);
             dataToSave.event_pass = bcrypt.hashSync(dataToSave.event_pass, salt);
         }
@@ -165,12 +236,16 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
         if (selectedItem && selectedItem.$id) {
             await updateItem('events', selectedItem.$id, dataToSave);
+            setIsEditOpen(false);
+            setSelectedItem(null);
+            setFormData({});
+            setPlainPassword(null);
+            setPasswordDownloaded(false);
         } else {
             await createItem('events', dataToSave);
+            // Don't close form yet - wait for password download
+            // Keep form open to show download button
         }
-        setIsEditOpen(false);
-        setSelectedItem(null);
-        setFormData({});
     };
 
     const isValidUrl = (url: string | undefined): boolean => {
@@ -492,10 +567,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 </Button>
                 <Button
                     onClick={() => {
+                        const newPass = generateEventPass();
                         setSelectedItem(null);
                         setFormData({
-                            event_pass: generateEventPass() // Pre-fill for new individual events too
+                            event_pass: newPass // Pre-fill for new individual events too
                         });
+                        setPlainPassword(newPass); // Store plain password for download
+                        setPasswordDownloaded(false); // Reset download status
                         setIsEditOpen(true);
                     }}
                     className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
@@ -719,7 +797,12 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                                 type="button"
                                 variant="outline"
                                 onClick={() => {
-                                    setFormData({ ...formData, event_pass: generateEventPass() });
+                                    const newPass = generateEventPass();
+                                    setFormData({ ...formData, event_pass: newPass });
+                                    if (!selectedItem?.$id) {
+                                        setPlainPassword(newPass);
+                                        setPasswordDownloaded(false);
+                                    }
                                 }}
                                 className="shrink-0"
                                 title="Generate new event pass"
@@ -727,6 +810,26 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                                 <RefreshCw className="w-4 h-4" />
                             </Button>
                         </div>
+                        {plainPassword && !passwordDownloaded && !selectedItem?.$id && (
+                            <div className="mt-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-md">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <p className="text-sm text-cyan-400 font-medium">⚠️ Download Event Pass</p>
+                                        <p className="text-xs text-white/60 mt-1">
+                                            This password will be hashed after saving. Download it now (one-time only).
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        onClick={downloadPassword}
+                                        className="bg-cyan-500 hover:bg-cyan-400 text-black shrink-0"
+                                    >
+                                        <Download className="w-4 h-4 mr-2" />
+                                        Download
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         <p className="text-xs text-white/50">
                             Auto-generated: 8 characters with uppercase, lowercase, numbers, and symbols (@#_)
                         </p>
@@ -772,8 +875,26 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
-                        <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
-                        <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>
+                        {plainPassword && !passwordDownloaded && !selectedItem?.$id ? (
+                            <>
+                                <Button type="button" variant="ghost" onClick={handleCloseForm}>
+                                    Skip Download
+                                </Button>
+                                <Button 
+                                    type="button"
+                                    onClick={downloadPassword}
+                                    className="bg-cyan-500 text-black hover:bg-cyan-400"
+                                >
+                                    <Download className="w-4 h-4 mr-2" />
+                                    Download Password & Close
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button type="button" variant="ghost" onClick={handleCloseForm}>Cancel</Button>
+                                <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>
+                            </>
+                        )}
                     </div>
                 </form>
             </Modal>
