@@ -44,20 +44,13 @@ interface ClientEventsPageProps {
 const CATEGORY_OPTIONS = [
     'Technical',
     'Cultural',
-    'Sports',
-    'Workshop',
-    'Seminar',
-    'Competition',
-    'Exhibition',
-    'Other'
+    'General'
 ];
 
 // Fest options for dropdown
 const FEST_OPTIONS = [
     'BRAHMA',
-    'ASHWAMEDHA',
-    'BRAHMA26',
-    'Other'
+    'ASHWAMEDHA'
 ];
 
 export default function ClientEventsPage({ initialData, total, tickets }: ClientEventsPageProps) {

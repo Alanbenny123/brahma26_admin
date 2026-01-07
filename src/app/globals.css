@@ -110,3 +110,26 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #555; 
 }
+
+/* Select dropdown options styling */
+select option {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus {
+  background-color: #2a2a2a !important;
+}
+
+select option:checked,
+select option[selected] {
+  background-color: #06b6d4 !important;
+  color: #000000 !important;
+}
+
+/* Dark color scheme for select */
+select {
+  color-scheme: dark;
+}
