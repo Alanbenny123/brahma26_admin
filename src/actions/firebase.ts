@@ -97,33 +97,35 @@ export async function createFirestoreUser(userData: any) {
     }
 }
 
-// Upsert User (Create or Update) - Returns Firebase document ID
+// Upsert User (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreUser(userData: any) {
     try {
         if (!userData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
         }
 
-        // Check if user already exists
-        const existing = await getDocumentByAppwriteId('users', userData.appwriteId);
+        // Use Appwrite ID as the Firebase document ID
+        const userDocId = userData.appwriteId;
+        const userRef = doc(db, 'users', userDocId);
+        
+        // Check if document exists
+        const docSnap = await getDoc(userRef);
 
-        if (existing.exists && existing.id) {
+        if (docSnap.exists()) {
             // Update existing user
-            const userRef = doc(db, 'users', existing.id);
             await updateDoc(userRef, {
                 ...userData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
+            return { id: userDocId, firebaseId: userDocId, success: true, action: 'updated' };
         } else {
-            // Create new user
-            const usersRef = collection(db, 'users');
-            const docRef = await addDoc(usersRef, {
+            // Create new user with specific document ID
+            await setDoc(userRef, {
                 ...userData,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
+            return { id: userDocId, firebaseId: userDocId, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting user:', error);
@@ -213,30 +215,35 @@ export async function deleteFirestoreEvent(eventId: string) {
     }
 }
 
-// Upsert Event (Create or Update) - Returns Firebase document ID
+// Upsert Event (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreEvent(eventData: any) {
     try {
         if (!eventData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
         }
 
-        const existing = await getDocumentByAppwriteId('events', eventData.appwriteId);
+        // Use Appwrite ID as the Firebase document ID
+        const eventDocId = eventData.appwriteId;
+        const eventRef = doc(db, 'events', eventDocId);
+        
+        // Check if document exists
+        const docSnap = await getDoc(eventRef);
 
-        if (existing.exists && existing.id) {
-            const eventRef = doc(db, 'events', existing.id);
+        if (docSnap.exists()) {
+            // Update existing event
             await updateDoc(eventRef, {
                 ...eventData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
+            return { id: eventDocId, firebaseId: eventDocId, success: true, action: 'updated' };
         } else {
-            const eventsRef = collection(db, 'events');
-            const docRef = await addDoc(eventsRef, {
+            // Create new event with specific document ID
+            await setDoc(eventRef, {
                 ...eventData,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
+            return { id: eventDocId, firebaseId: eventDocId, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting event:', error);
@@ -275,45 +282,44 @@ export async function createFirestoreTicket(ticketData: any) {
     }
 }
 
-// Upsert Ticket (Create or Update) - Returns Firebase document ID
+// Upsert Ticket (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreTicket(ticketData: any) {
     try {
         if (!ticketData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
         }
 
-        // Get Firebase IDs for references
+        // Use Appwrite IDs directly as Firebase document IDs for references
         if (ticketData.user_id_appwrite) {
-            const userFirebaseId = await getFirebaseIdByAppwriteId('users', ticketData.user_id_appwrite);
-            if (userFirebaseId) {
-                ticketData.stud_id = userFirebaseId; // Firebase user document ID
-            }
+            ticketData.stud_id = ticketData.user_id_appwrite; // Appwrite user ID = Firebase user doc ID
         }
 
         if (ticketData.event_id_appwrite) {
-            const eventFirebaseId = await getFirebaseIdByAppwriteId('events', ticketData.event_id_appwrite);
-            if (eventFirebaseId) {
-                ticketData.event_id = eventFirebaseId; // Firebase event document ID
-            }
+            ticketData.event_id = ticketData.event_id_appwrite; // Appwrite event ID = Firebase event doc ID
         }
 
-        const existing = await getDocumentByAppwriteId('tickets', ticketData.appwriteId);
+        // Use Appwrite ID as the Firebase document ID
+        const ticketDocId = ticketData.appwriteId;
+        const ticketRef = doc(db, 'tickets', ticketDocId);
+        
+        // Check if document exists
+        const docSnap = await getDoc(ticketRef);
 
-        if (existing.exists && existing.id) {
-            const ticketRef = doc(db, 'tickets', existing.id);
+        if (docSnap.exists()) {
+            // Update existing ticket
             await updateDoc(ticketRef, {
                 ...ticketData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
+            return { id: ticketDocId, firebaseId: ticketDocId, success: true, action: 'updated' };
         } else {
-            const ticketsRef = collection(db, 'tickets');
-            const docRef = await addDoc(ticketsRef, {
+            // Create new ticket with specific document ID
+            await setDoc(ticketRef, {
                 ...ticketData,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
+            return { id: ticketDocId, firebaseId: ticketDocId, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting ticket:', error);
@@ -377,45 +383,44 @@ export async function deleteFirestoreTransaction(transactionId: string) {
     }
 }
 
-// Upsert Transaction (Create or Update) - Returns Firebase document ID
+// Upsert Transaction (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreTransaction(transactionData: any) {
     try {
         if (!transactionData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
         }
 
-        // Get Firebase IDs for references
+        // Use Appwrite IDs directly as Firebase document IDs for references
         if (transactionData.user_id_appwrite) {
-            const userFirebaseId = await getFirebaseIdByAppwriteId('users', transactionData.user_id_appwrite);
-            if (userFirebaseId) {
-                transactionData.stud_id = userFirebaseId; // Firebase user document ID
-            }
+            transactionData.stud_id = transactionData.user_id_appwrite; // Appwrite user ID = Firebase user doc ID
         }
 
         if (transactionData.ticket_id_appwrite) {
-            const ticketFirebaseId = await getFirebaseIdByAppwriteId('tickets', transactionData.ticket_id_appwrite);
-            if (ticketFirebaseId) {
-                transactionData.ticket_id = ticketFirebaseId; // Firebase ticket document ID
-            }
+            transactionData.ticket_id = transactionData.ticket_id_appwrite; // Appwrite ticket ID = Firebase ticket doc ID
         }
 
-        const existing = await getDocumentByAppwriteId('transactions', transactionData.appwriteId);
+        // Use Appwrite ID as the Firebase document ID
+        const transactionDocId = transactionData.appwriteId;
+        const transactionRef = doc(db, 'transactions', transactionDocId);
+        
+        // Check if document exists
+        const docSnap = await getDoc(transactionRef);
 
-        if (existing.exists && existing.id) {
-            const transactionRef = doc(db, 'transactions', existing.id);
+        if (docSnap.exists()) {
+            // Update existing transaction
             await updateDoc(transactionRef, {
                 ...transactionData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
+            return { id: transactionDocId, firebaseId: transactionDocId, success: true, action: 'updated' };
         } else {
-            const transactionsRef = collection(db, 'transactions');
-            const docRef = await addDoc(transactionsRef, {
+            // Create new transaction with specific document ID
+            await setDoc(transactionRef, {
                 ...transactionData,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
+            return { id: transactionDocId, firebaseId: transactionDocId, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting transaction:', error);
@@ -454,45 +459,44 @@ export async function createFirestoreAttendance(attendanceData: any) {
     }
 }
 
-// Upsert Attendance (Create or Update) - Returns Firebase document ID
+// Upsert Attendance (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreAttendance(attendanceData: any) {
     try {
         if (!attendanceData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
         }
 
-        // Get Firebase IDs for references
+        // Use Appwrite IDs directly as Firebase document IDs for references
         if (attendanceData.user_id_appwrite) {
-            const userFirebaseId = await getFirebaseIdByAppwriteId('users', attendanceData.user_id_appwrite);
-            if (userFirebaseId) {
-                attendanceData.stud_id = userFirebaseId; // Firebase user document ID
-            }
+            attendanceData.stud_id = attendanceData.user_id_appwrite; // Appwrite user ID = Firebase user doc ID
         }
 
         if (attendanceData.event_id_appwrite) {
-            const eventFirebaseId = await getFirebaseIdByAppwriteId('events', attendanceData.event_id_appwrite);
-            if (eventFirebaseId) {
-                attendanceData.event_id = eventFirebaseId; // Firebase event document ID
-            }
+            attendanceData.event_id = attendanceData.event_id_appwrite; // Appwrite event ID = Firebase event doc ID
         }
 
-        const existing = await getDocumentByAppwriteId('attendance', attendanceData.appwriteId);
+        // Use Appwrite ID as the Firebase document ID
+        const attendanceDocId = attendanceData.appwriteId;
+        const attendanceRef = doc(db, 'attendance', attendanceDocId);
+        
+        // Check if document exists
+        const docSnap = await getDoc(attendanceRef);
 
-        if (existing.exists && existing.id) {
-            const attendanceRef = doc(db, 'attendance', existing.id);
+        if (docSnap.exists()) {
+            // Update existing attendance
             await updateDoc(attendanceRef, {
                 ...attendanceData,
                 updatedAt: Timestamp.now(),
             });
-            return { id: existing.id, firebaseId: existing.id, success: true, action: 'updated' };
+            return { id: attendanceDocId, firebaseId: attendanceDocId, success: true, action: 'updated' };
         } else {
-            const attendanceRef = collection(db, 'attendance');
-            const docRef = await addDoc(attendanceRef, {
+            // Create new attendance with specific document ID
+            await setDoc(attendanceRef, {
                 ...attendanceData,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            return { id: docRef.id, firebaseId: docRef.id, success: true, action: 'created' };
+            return { id: attendanceDocId, firebaseId: attendanceDocId, success: true, action: 'created' };
         }
     } catch (error) {
         console.error('Error upserting attendance:', error);
