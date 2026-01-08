@@ -89,27 +89,8 @@ brahma26-admin/
 └── STORAGE_STRATEGY.md       # Image storage strategy guide
 ```
 
-## Environment Variables
-
-Create a `.env.local` file with the following variables:
-
-```env
-# Admin Authentication
-ADMIN_USERNAME=your_username
-ADMIN_PASSWORD=your_password
-
-# Firebase
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-project.firebaseio.com
-```
 
 ## Documentation
-
 - **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration guide
 - **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** - Image storage strategy (Firebase Storage)
 - **[DATA_FETCHING_STRATEGY.md](./DATA_FETCHING_STRATEGY.md)** - Smart data fetching with fallback

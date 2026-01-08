@@ -486,14 +486,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     item.coordinator = tempCoordinators;
                     item.phone_number = Array.from(new Set(tempPhones)).join(", ");
 
-                    // Handle password: Generate if missing, then hash
+                    // Hash the plain password from CSV "Event Pass" column
                     if (!item.event_pass || item.event_pass.trim() === '') {
-                        // Generate unique event pass if not provided
-                        item.event_pass = generateEventPass();
+                        throw new Error(`Event Pass is required for "${item.event_name}". Please provide a password in the "Event Pass" column.`);
                     }
                     
-                    // Hash the password if it's not already hashed
-                    if (item.event_pass && !item.event_pass.startsWith('$2')) {
+                    // Convert plain password to bcrypt hash if not already hashed
+                    if (!item.event_pass.startsWith('$2')) {
                         const salt = bcrypt.genSaltSync(10);
                         item.event_pass = bcrypt.hashSync(String(item.event_pass), salt);
                     }
@@ -517,16 +516,15 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 if (!item.event_name || item.event_name.trim() === '') {
                     return false;
                 }
-                // Ensure event_pass exists and is hashed (safety check)
+                // Ensure event_pass exists and is hashed
                 if (!item.event_pass || item.event_pass.trim() === '') {
-                    // Generate and hash if somehow missing
-                    const newPass = generateEventPass();
-                    const salt = bcrypt.genSaltSync(10);
-                    item.event_pass = bcrypt.hashSync(newPass, salt);
-                } else if (!item.event_pass.startsWith('$2')) {
-                    // Hash if not already hashed
-                    const salt = bcrypt.genSaltSync(10);
-                    item.event_pass = bcrypt.hashSync(String(item.event_pass), salt);
+                    console.error(`Missing event_pass for event: ${item.event_name}`);
+                    return false;
+                }
+                // Verify password was hashed (safety check)
+                if (!item.event_pass.startsWith('$2')) {
+                    console.error(`Event pass not hashed for: ${item.event_name}`);
+                    return false;
                 }
                 // Ensure amount is a string and max 50 chars
                 if (!item.amount || typeof item.amount !== 'string') {
