@@ -235,14 +235,28 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         }
 
         if (selectedItem && selectedItem.$id) {
-            await updateItem('events', selectedItem.$id, dataToSave);
+            const result = await updateItem('events', selectedItem.$id, dataToSave);
+            if (!result.success) {
+                // Show error message to user
+                if (result.error) {
+                    alert(typeof result.error === 'string' ? result.error : 'Failed to update event. Please try again.');
+                }
+                return; // Don't close form on error
+            }
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
             setPlainPassword(null);
             setPasswordDownloaded(false);
         } else {
-            await createItem('events', dataToSave);
+            const result = await createItem('events', dataToSave);
+            if (!result.success) {
+                // Show error message to user
+                if (result.error) {
+                    alert(typeof result.error === 'string' ? result.error : 'Failed to create event. Please try again.');
+                }
+                return; // Don't close form on error
+            }
             // Don't close form yet - wait for password download
             // Keep form open to show download button
         }
@@ -539,9 +553,21 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
             const result = await createManyItems('events', dataToUpload);
             if (result.success) {
-                alert(`Successfully uploaded ${dataToUpload.length} events.`);
+                alert(`Successfully uploaded ${result.created || dataToUpload.length} events.`);
             } else {
-                alert("Failed to upload events. Check console for details.");
+                // Show detailed error message for duplicates
+                if (result.duplicates && result.duplicateCount) {
+                    const errorMsg = typeof result.error === 'string' 
+                        ? result.error 
+                        : `Found ${result.duplicateCount} duplicate event(s). These events already exist in the database.`;
+                    alert(`❌ Upload Failed\n\n${errorMsg}\n\nPlease remove duplicate events from your CSV and try again.`);
+                } else {
+                    const errorMsg = typeof result.error === 'string' 
+                        ? result.error 
+                        : 'Failed to upload events.';
+                    alert(`❌ Upload Failed\n\n${errorMsg}\n\nCheck console for details.`);
+                }
+                console.error('Bulk upload error:', result);
             }
 
             // Reset input

@@ -1,5 +1,29 @@
 'use server';
 
+/**
+ * DATA FETCHER - SMART FALLBACK READS
+ * ====================================
+ * 
+ * This module implements intelligent data fetching with automatic fallback:
+ * 
+ * READ STRATEGY:
+ * 1. Try Appwrite first (primary source)
+ * 2. If Appwrite unavailable → Fallback to Firebase Firestore
+ * 3. Return data + source indicator
+ * 
+ * WRITE STRATEGY:
+ * ⚠️ This module is READ-ONLY for data fetching!
+ * 
+ * For writes (create/update/delete):
+ * → Always use '@/actions/appwrite' functions
+ * → Never write directly to Firebase from admin UI
+ * → Firebase sync happens automatically via real-time listener
+ * 
+ * Image handling:
+ * → Images stored in Firebase Storage
+ * → URLs stored in Appwrite (synced to Firebase Firestore)
+ */
+
 import { getUsers, getEvents, getTickets, getTransactions, getAttendance } from '@/actions/appwrite';
 import {
     getFirestoreUsers,

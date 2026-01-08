@@ -1,5 +1,29 @@
 'use client';
 
+/**
+ * REAL-TIME SYNC LISTENER
+ * =======================
+ * 
+ * This module listens for changes in Appwrite and triggers Firebase sync.
+ * 
+ * ARCHITECTURE:
+ * 1. Subscribes to Appwrite collections (client-side WebSocket)
+ * 2. Detects create/update/delete events
+ * 3. Calls /api/sync to update Firebase Firestore
+ * 4. Keeps both databases synchronized
+ * 
+ * WHY CLIENT-SIDE LISTENER:
+ * → Appwrite WebSocket subscriptions work in browser
+ * → Server-side sync via /api/sync prevents CORS issues
+ * → Separates concerns: listen (client) + sync (server)
+ * 
+ * DATA FLOW:
+ * User action → Appwrite document changes → This listener detects
+ * → POST to /api/sync → Firebase Firestore updated
+ * 
+ * This ensures Firebase is always a synchronized backup of Appwrite.
+ */
+
 import { Client } from 'appwrite';
 
 let client: Client | null = null;
@@ -69,7 +93,10 @@ function subscribeToUsers() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ User synced to Firebase:', payload.$id, result.action || '');
+                            console.log('✅ User synced to Firebase:', payload.$id, result.action || 'created');
+                            console.log('   📊 Data:', { name: payload.name, email: payload.email });
+                        } else {
+                            console.error('❌ Failed to sync user to Firebase:', result.error);
                         }
                     } 
                     else if (events.some(e => e.includes('update'))) {
@@ -147,17 +174,33 @@ function subscribeToEvents() {
                                 action: 'create',
                                 data: {
                                     appwriteId: payload.$id,
-                                    event_id: payload.$id, // Appwrite event ID
-                                    event_name: payload.event_name,
-                                    fest: payload.fest,
-                                    date: payload.date,
-                                    description: payload.description,
+                                    event_id: payload.$id,
+                                    event_name: payload.event_name || '',
+                                    venue: payload.venue || '',
+                                    time: payload.time || '',
+                                    amount: payload.amount || '0',
+                                    slots: payload.slots || 0,
+                                    category: payload.category || 'General',
+                                    fest: payload.fest || '',
+                                    event_pass: payload.event_pass || '',
+                                    date: payload.date || '',
+                                    winners: payload.winners || [],
+                                    coordinator: payload.coordinator || [],
+                                    completed: payload.completed || false,
+                                    poster: payload.poster || '',
+                                    event_rules: payload.event_rules || '',
+                                    details: payload.details || '',
+                                    phone_number: payload.phone_number || '',
+                                    createdAt: payload.$createdAt,
                                 }
                             })
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Event synced to Firebase:', payload.$id, result.action || '');
+                            console.log('✅ Event synced to Firebase:', payload.$id, result.action || 'created');
+                            console.log('   📊 Data:', { event_name: payload.event_name, date: payload.date });
+                        } else {
+                            console.error('❌ Failed to sync event to Firebase:', result.error);
                         }
                     } 
                     else if (events.some(e => e.includes('update'))) {
@@ -169,10 +212,22 @@ function subscribeToEvents() {
                                 action: 'update',
                                 id: payload.$id,
                                 data: {
-                                    event_name: payload.event_name,
-                                    fest: payload.fest,
-                                    date: payload.date,
-                                    description: payload.description,
+                                    event_name: payload.event_name || '',
+                                    venue: payload.venue || '',
+                                    time: payload.time || '',
+                                    amount: payload.amount || '0',
+                                    slots: payload.slots || 0,
+                                    category: payload.category || 'General',
+                                    fest: payload.fest || '',
+                                    event_pass: payload.event_pass || '',
+                                    date: payload.date || '',
+                                    winners: payload.winners || [],
+                                    coordinator: payload.coordinator || [],
+                                    completed: payload.completed || false,
+                                    poster: payload.poster || '',
+                                    event_rules: payload.event_rules || '',
+                                    details: payload.details || '',
+                                    phone_number: payload.phone_number || '',
                                 }
                             })
                         });
@@ -242,7 +297,46 @@ function subscribeToTickets() {
                         });
                         const result = await response.json();
                         if (result.success) {
-                            console.log('✅ Ticket synced to Firebase:', payload.$id, result.action || '');
+                            console.log('✅ Ticket synced to Firebase:', payload.$id, result.action || 'created');
+                            console.log('   📊 Data:', { ticket_number: payload.ticket_number, status: payload.status });
+                        } else {
+                            console.error('❌ Failed to sync ticket to Firebase:', result.error);
+                        }
+                    }
+                    else if (events.some(e => e.includes('update'))) {
+                        // Ticket updated in Appwrite → Update in Firebase
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'tickets',
+                                action: 'update',
+                                id: payload.$id,
+                                data: {
+                                    ticket_number: payload.ticket_number,
+                                    status: payload.status,
+                                }
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Ticket updated in Firebase:', payload.$id);
+                        }
+                    }
+                    else if (events.some(e => e.includes('delete'))) {
+                        // Ticket deleted in Appwrite → Delete from Firebase
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'tickets',
+                                action: 'delete',
+                                id: payload.$id,
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Ticket deleted from Firebase:', payload.$id);
                         }
                     }
                 } catch (error) {
@@ -375,6 +469,43 @@ function subscribeToAttendance() {
                         const result = await response.json();
                         if (result.success) {
                             console.log('✅ Attendance synced to Firebase:', payload.$id, result.action || '');
+                        }
+                    }
+                    else if (events.some(e => e.includes('update'))) {
+                        // Attendance updated in Appwrite → Update in Firebase
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'attendance',
+                                action: 'update',
+                                id: payload.$id,
+                                data: {
+                                    event_id: payload.event_id,
+                                    ticket_id: payload.ticket_id,
+                                    stud_id: payload.stud_id,
+                                }
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Attendance updated in Firebase:', payload.$id);
+                        }
+                    }
+                    else if (events.some(e => e.includes('delete'))) {
+                        // Attendance deleted in Appwrite → Delete from Firebase
+                        const response = await fetch('/api/sync', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                type: 'attendance',
+                                action: 'delete',
+                                id: payload.$id,
+                            })
+                        });
+                        const result = await response.json();
+                        if (result.success) {
+                            console.log('✅ Attendance deleted from Firebase:', payload.$id);
                         }
                     }
                 } catch (error) {

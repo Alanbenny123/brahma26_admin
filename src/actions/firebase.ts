@@ -1,5 +1,27 @@
 'use server';
 
+/**
+ * FIREBASE ACTIONS - SYNC & FALLBACK ONLY
+ * ========================================
+ * 
+ * IMPORTANT: These functions are for SYNC and FALLBACK operations ONLY!
+ * 
+ * DO NOT call these directly from admin UI components!
+ * 
+ * These functions should only be used by:
+ * 1. /api/sync endpoint (for real-time synchronization from Appwrite)
+ * 2. data-fetcher.ts (for fallback reads when Appwrite is unavailable)
+ * 3. Manual sync operations (sync.ts)
+ * 
+ * For admin operations (create/update/delete):
+ * → Use functions from '@/actions/appwrite'
+ * → Data will automatically sync to Firebase via real-time listener
+ * 
+ * Firebase Storage exceptions:
+ * → Images ARE stored directly in Firebase Storage (not Appwrite)
+ * → Image URLs are then stored in Appwrite → synced to Firebase Firestore
+ */
+
 import { db, rtdb } from '@/lib/firebase';
 import {
     collection,
@@ -128,12 +150,14 @@ export async function upsertFirestoreUser(userData: any) {
             return { id: userDocId, firebaseId: userDocId, success: true, action: 'updated' };
         } else {
             // Create new user with specific document ID
-            await setDoc(userRef, {
+            const dataToSave = {
                 ...userData,
                 certificates: certificateUrls, // Store URLs only
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
-            });
+            };
+            await setDoc(userRef, dataToSave);
+            console.log('✅ Firebase: User created successfully:', userDocId);
             return { id: userDocId, firebaseId: userDocId, success: true, action: 'created' };
         }
     } catch (error) {
@@ -224,6 +248,29 @@ export async function deleteFirestoreEvent(eventId: string) {
     }
 }
 
+// Helper to check if duplicate event exists in Firebase
+async function checkFirebaseEventExists(eventName: string, eventDate: string, excludeId?: string) {
+    try {
+        const eventsRef = collection(db, 'events');
+        const q = query(
+            eventsRef,
+            where('event_name', '==', eventName),
+            where('date', '==', eventDate)
+        );
+        const snapshot = await getDocs(q);
+        
+        if (excludeId) {
+            const duplicates = snapshot.docs.filter(doc => doc.id !== excludeId);
+            return duplicates.length > 0;
+        }
+        
+        return !snapshot.empty;
+    } catch (error) {
+        console.error('Error checking Firebase event existence:', error);
+        return false;
+    }
+}
+
 // Upsert Event (Create or Update) - Uses Appwrite ID as Firebase document ID
 // Note: Event images should be uploaded to Firebase Storage first
 // and only the URL should be stored in Firestore
@@ -253,12 +300,14 @@ export async function upsertFirestoreEvent(eventData: any) {
             return { id: eventDocId, firebaseId: eventDocId, success: true, action: 'updated' };
         } else {
             // Create new event with specific document ID
-            await setDoc(eventRef, {
+            const dataToSave = {
                 ...eventData,
                 imageUrl: imageUrl, // Store image URL
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
-            });
+            };
+            await setDoc(eventRef, dataToSave);
+            console.log('✅ Firebase: Event created successfully:', eventDocId);
             return { id: eventDocId, firebaseId: eventDocId, success: true, action: 'created' };
         }
     } catch (error) {
@@ -347,6 +396,17 @@ export async function upsertFirestoreTicket(ticketData: any) {
     } catch (error) {
         console.error('Error upserting ticket:', error);
         return { success: false, error: 'Failed to upsert ticket' };
+    }
+}
+
+export async function deleteFirestoreTicket(ticketId: string) {
+    try {
+        const ticketRef = doc(db, 'tickets', ticketId);
+        await deleteDoc(ticketRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting ticket:', error);
+        return { success: false, error: 'Failed to delete ticket' };
     }
 }
 
@@ -524,6 +584,17 @@ export async function upsertFirestoreAttendance(attendanceData: any) {
     } catch (error) {
         console.error('Error upserting attendance:', error);
         return { success: false, error: 'Failed to upsert attendance' };
+    }
+}
+
+export async function deleteFirestoreAttendance(attendanceId: string) {
+    try {
+        const attendanceRef = doc(db, 'attendance', attendanceId);
+        await deleteDoc(attendanceRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting attendance:', error);
+        return { success: false, error: 'Failed to delete attendance' };
     }
 }
 

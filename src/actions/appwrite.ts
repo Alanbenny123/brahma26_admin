@@ -1,5 +1,25 @@
 'use server';
 
+/**
+ * APPWRITE ACTIONS - PRIMARY DATABASE
+ * ===================================
+ * 
+ * IMPORTANT: Appwrite is the PRIMARY source of truth for all admin operations.
+ * 
+ * DATA FLOW ARCHITECTURE:
+ * 1. Admin creates/updates/deletes data → Appwrite (via these actions)
+ * 2. Appwrite real-time listener detects change → Triggers sync
+ * 3. Sync API automatically updates Firebase Firestore (backup/fallback)
+ * 
+ * NEVER write directly to Firebase from admin operations!
+ * Firebase is only for:
+ *   - Automatic sync (via real-time listener)
+ *   - Fallback reads when Appwrite is unavailable
+ *   - Image storage (Firebase Storage)
+ * 
+ * All non-image data modifications MUST go through Appwrite first.
+ */
+
 import { createAdminClient, appwriteConfig } from "@/lib/appwrite";
 import { ID, Query } from "node-appwrite";
 import { revalidatePath } from "next/cache";
@@ -40,6 +60,34 @@ async function deleteDocument(collectionId: string, documentId: string) {
 
 // --- Collection Specific Getters ---
 
+// Helper to check if event already exists
+export async function checkEventExists(eventName: string, eventDate: string, excludeId?: string) {
+    const { databases } = await createAdminClient();
+    try {
+        const queries = [
+            Query.equal('event_name', eventName),
+            Query.equal('date', eventDate)
+        ];
+        
+        const response = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.events,
+            queries
+        );
+        
+        // If we're updating an existing event, exclude it from the duplicate check
+        if (excludeId) {
+            const duplicates = response.documents.filter(doc => doc.$id !== excludeId);
+            return { exists: duplicates.length > 0, documents: duplicates };
+        }
+        
+        return { exists: response.total > 0, documents: response.documents };
+    } catch (error) {
+        console.error('Error checking event existence:', error);
+        return { exists: false, documents: [] };
+    }
+}
+
 export async function getUsers() {
     return await getCollectionData(appwriteConfig.collections.users);
 }
@@ -75,6 +123,18 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
+        // Check for duplicate events before creating
+        if (type === 'events' && data.event_name && data.date) {
+            const duplicateCheck = await checkEventExists(data.event_name, data.date);
+            if (duplicateCheck.exists) {
+                return { 
+                    success: false, 
+                    error: `Event "${data.event_name}" on ${data.date} already exists. Cannot create duplicate events.`,
+                    isDuplicate: true
+                };
+            }
+        }
+
         const documentId = type === 'events' ? generateEventId(data.fest) : ID.unique();
         await databases.createDocument(
             appwriteConfig.databaseId,
@@ -94,6 +154,45 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
+        // For events, check for duplicates first
+        if (type === 'events') {
+            const duplicates: Array<{ event_name: string; date: string; index: number }> = [];
+            const validItems: any[] = [];
+            
+            for (let i = 0; i < dataList.length; i++) {
+                const data = dataList[i];
+                if (data.event_name && data.date) {
+                    const duplicateCheck = await checkEventExists(data.event_name, data.date);
+                    if (duplicateCheck.exists) {
+                        duplicates.push({ 
+                            event_name: data.event_name, 
+                            date: data.date, 
+                            index: i + 1 
+                        });
+                    } else {
+                        validItems.push(data);
+                    }
+                } else {
+                    validItems.push(data);
+                }
+            }
+            
+            // If duplicates found, return error with details
+            if (duplicates.length > 0) {
+                const duplicateList = duplicates.map(d => 
+                    `  • Row ${d.index}: "${d.event_name}" on ${d.date}`
+                ).join('\n');
+                
+                return { 
+                    success: false, 
+                    error: `Found ${duplicates.length} duplicate event(s):\n${duplicateList}\n\nThese events already exist in the database.`,
+                    duplicates,
+                    validCount: validItems.length,
+                    duplicateCount: duplicates.length
+                };
+            }
+        }
+        
         const promises = dataList.map(data => {
             const documentId = type === 'events' ? generateEventId(data.fest) : ID.unique();
             return databases.createDocument(
@@ -105,7 +204,7 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
         });
         await Promise.all(promises);
         revalidatePath(`/dashboard/${type}`);
-        return { success: true };
+        return { success: true, created: dataList.length };
     } catch (error) {
         console.error(`Error creating many ${type}:`, error);
         return { success: false, error };
@@ -131,6 +230,30 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
     }
 
     try {
+        // Check for duplicate events when updating event name or date
+        if (type === 'events' && (cleanData.event_name || cleanData.date)) {
+            // Get current event data to fill in missing fields
+            const currentDoc = await databases.getDocument(
+                appwriteConfig.databaseId,
+                collectionId,
+                id
+            );
+            
+            const eventName = cleanData.event_name || currentDoc.event_name;
+            const eventDate = cleanData.date || currentDoc.date;
+            
+            if (eventName && eventDate) {
+                const duplicateCheck = await checkEventExists(eventName, eventDate, id);
+                if (duplicateCheck.exists) {
+                    return { 
+                        success: false, 
+                        error: `Event "${eventName}" on ${eventDate} already exists. Cannot have duplicate events.`,
+                        isDuplicate: true
+                    };
+                }
+            }
+        }
+
         await databases.updateDocument(
             appwriteConfig.databaseId,
             collectionId,

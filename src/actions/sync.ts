@@ -1,5 +1,29 @@
 'use server';
 
+/**
+ * SYNC OPERATIONS - APPWRITE → FIREBASE
+ * ======================================
+ * 
+ * This module handles synchronization from Appwrite to Firebase.
+ * 
+ * SYNC FLOW:
+ * 1. Real-time listener detects Appwrite changes (client-side)
+ * 2. Calls /api/sync endpoint (server-side)
+ * 3. These functions sync data to Firebase Firestore
+ * 
+ * AUTOMATIC SYNC:
+ * → Triggered by Appwrite real-time events
+ * → Upsert operations prevent duplicates
+ * → Keeps Firebase Firestore in sync as backup
+ * 
+ * MANUAL SYNC:
+ * → syncAllToFirebase() for full database sync
+ * → Useful for initial setup or recovery
+ * 
+ * DATA FLOW:
+ * Admin UI → Appwrite (primary) → [Real-time sync] → Firebase (backup)
+ */
+
 import { getUsers, getTickets, getEvents, getAttendance, getTransactions } from '@/actions/appwrite';
 import {
     upsertFirestoreUser,
@@ -97,11 +121,23 @@ export async function syncEventsToFirestore() {
         for (const event of appwriteEvents) {
             const eventData = {
                 appwriteId: event.$id,
-                event_id: event.$id, // Appwrite event ID
+                event_id: event.$id,
                 event_name: event.event_name || '',
+                venue: event.venue || '',
+                time: event.time || '',
+                amount: event.amount || '0',
+                slots: event.slots || 0,
+                category: event.category || 'General',
                 fest: event.fest || '',
+                event_pass: event.event_pass || '',
                 date: event.date || '',
-                description: event.description || '',
+                winners: event.winners || [],
+                coordinator: event.coordinator || [],
+                completed: event.completed || false,
+                poster: event.poster || '',
+                event_rules: event.event_rules || '',
+                details: event.details || '',
+                phone_number: event.phone_number || '',
                 createdAt: event.$createdAt,
             };
 

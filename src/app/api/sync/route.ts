@@ -7,10 +7,12 @@ import {
     updateFirestoreEvent,
     deleteFirestoreEvent,
     upsertFirestoreTicket,
+    deleteFirestoreTicket,
     upsertFirestoreTransaction,
     updateFirestoreTransaction,
     deleteFirestoreTransaction,
     upsertFirestoreAttendance,
+    deleteFirestoreAttendance,
 } from '@/actions/firebase';
 
 export async function POST(request: NextRequest) {
@@ -44,6 +46,10 @@ export async function POST(request: NextRequest) {
         else if (type === 'tickets') {
             if (action === 'create') {
                 result = await upsertFirestoreTicket(data);
+            } else if (action === 'update' && id) {
+                result = await upsertFirestoreTicket({ ...data, appwriteId: id });
+            } else if (action === 'delete' && id) {
+                result = await deleteFirestoreTicket(id);
             }
         }
         // Handle Transactions (upsert to prevent duplicates)
@@ -60,12 +66,18 @@ export async function POST(request: NextRequest) {
         else if (type === 'attendance') {
             if (action === 'create') {
                 result = await upsertFirestoreAttendance(data);
+            } else if (action === 'update' && id) {
+                result = await upsertFirestoreAttendance({ ...data, appwriteId: id });
+            } else if (action === 'delete' && id) {
+                result = await deleteFirestoreAttendance(id);
             }
         }
 
         if (result?.success) {
-            return NextResponse.json({ success: true, result });
+            console.log(`✅ Sync API Success: ${type}/${action}`, result.action || action);
+            return NextResponse.json({ success: true, result, action: result.action });
         } else {
+            console.error(`❌ Sync API Failed: ${type}/${action}`, result?.error);
             return NextResponse.json(
                 { success: false, error: result?.error || 'Operation failed' },
                 { status: 400 }
