@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useState } from "react";
-import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw, Download } from "lucide-react";
+import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
@@ -42,9 +42,9 @@ interface ClientEventsPageProps {
 
 // Category options for dropdown
 const CATEGORY_OPTIONS = [
-    'Technical',
-    'Cultural',
-    'General'
+    'TECHNICAL',
+    'CULTURAL',
+    'GENERAL'
 ];
 
 // Fest options for dropdown
@@ -58,8 +58,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<EventType | null>(null);
     const [formData, setFormData] = useState<Partial<EventType>>({});
-    const [plainPassword, setPlainPassword] = useState<string | null>(null); // Store plain password temporarily
-    const [passwordDownloaded, setPasswordDownloaded] = useState<boolean>(false); // Track if downloaded
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -130,8 +128,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const handleEditClick = (item: any) => {
         setSelectedItem(item);
         setFormData(item);
-        setPlainPassword(null);
-        setPasswordDownloaded(false);
         setIsEditOpen(true);
     };
 
@@ -139,8 +135,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         setIsEditOpen(false);
         setSelectedItem(null);
         setFormData({});
-        setPlainPassword(null);
-        setPasswordDownloaded(false);
     };
 
     const confirmDelete = async () => {
@@ -170,31 +164,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         });
     };
 
-    // Download plain password as text file (one-time only)
-    const downloadPassword = () => {
-        if (!plainPassword || passwordDownloaded) return;
-        
-        const eventName = formData.event_name || 'Event';
-        const content = `Event: ${eventName}\nEvent Pass: ${plainPassword}\n\nGenerated: ${new Date().toLocaleString()}\n\n⚠️ IMPORTANT: This password can only be downloaded once. Please save it securely.`;
-        
-        const blob = new Blob([content], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `event-pass-${eventName.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        setPasswordDownloaded(true);
-        // Clear plain password and close form after download
-        setTimeout(() => {
-            setPlainPassword(null);
-            handleCloseForm();
-        }, 500);
-    };
-
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -213,6 +182,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             ...formData,
             amount: String(formData.amount || "0"),
             slots: Number(formData.slots),
+            category: formData.category ? String(formData.category).toUpperCase() : 'GENERAL',
             winners: processArrayField(formData.winners),
             coordinator: processArrayField(formData.coordinator),
             phone_number: processArrayField(formData.phone_number).map(p => p.replace(/[^0-9]/g, '')).filter(p => p !== "").join(", ")
@@ -220,11 +190,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
         // Handle password hashing: Only hash if event_pass is provided and not already hashed
         if (dataToSave.event_pass && !dataToSave.event_pass.startsWith('$2')) {
-            // Store plain password temporarily for download (only for new events)
-            if (!selectedItem?.$id) {
-                setPlainPassword(dataToSave.event_pass);
-                setPasswordDownloaded(false);
-            }
             const salt = bcrypt.genSaltSync(10);
             dataToSave.event_pass = bcrypt.hashSync(dataToSave.event_pass, salt);
         }
@@ -246,8 +211,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
-            setPlainPassword(null);
-            setPasswordDownloaded(false);
         } else {
             const result = await createItem('events', dataToSave);
             if (!result.success) {
@@ -257,8 +220,9 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 }
                 return; // Don't close form on error
             }
-            // Don't close form yet - wait for password download
-            // Keep form open to show download button
+            setIsEditOpen(false);
+            setSelectedItem(null);
+            setFormData({});
         }
     };
 
@@ -416,6 +380,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 if (normalized === "event_pass" || normalized === "pass") return "event_pass";
                 if (normalized === "rules") return "event_rules";
                 if (normalized === "phone_number" || normalized === "phone" || normalized === "contact") return "phone_number";
+                if (normalized === "coordinators" || normalized === "coordinator") return "coordinator";
                 return normalized;
             });
 
@@ -438,6 +403,14 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                         const rawHeader = rawHeaders[index].toLowerCase().trim();
 
                         if (rawHeader.startsWith("name of coordinator") || rawHeader.startsWith("name of coordintor")) {
+                            if (val) {
+                                const names = val.split(/[,;]/).map(n => n.trim()).filter(n => n !== "");
+                                tempCoordinators.push(...names);
+                            }
+                            return;
+                        }
+
+                        if (rawHeader === "coordinators") {
                             if (val) {
                                 const names = val.split(/[,;]/).map(n => n.trim()).filter(n => n !== "");
                                 tempCoordinators.push(...names);
@@ -627,13 +600,8 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 </Button>
                 <Button
                     onClick={() => {
-                        const newPass = generateEventPass();
                         setSelectedItem(null);
-                        setFormData({
-                            event_pass: newPass // Pre-fill for new individual events too
-                        });
-                        setPlainPassword(newPass); // Store plain password for download
-                        setPasswordDownloaded(false); // Reset download status
+                        setFormData({});
                         setIsEditOpen(true);
                     }}
                     className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
@@ -848,10 +816,8 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             <Input
                                 value={formData.event_pass || ''}
                                 onChange={(e) => setFormData({ ...formData, event_pass: e.target.value })}
-                                placeholder="Auto-generated 8-character pass"
+                                placeholder="Enter event password"
                                 required
-                                readOnly={!selectedItem?.$id} // Read-only for new events, editable for existing
-                                className={!selectedItem?.$id ? "bg-white/10 cursor-not-allowed" : ""}
                             />
                             <Button
                                 type="button"
@@ -859,10 +825,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                                 onClick={() => {
                                     const newPass = generateEventPass();
                                     setFormData({ ...formData, event_pass: newPass });
-                                    if (!selectedItem?.$id) {
-                                        setPlainPassword(newPass);
-                                        setPasswordDownloaded(false);
-                                    }
                                 }}
                                 className="shrink-0"
                                 title="Generate new event pass"
@@ -870,29 +832,6 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                                 <RefreshCw className="w-4 h-4" />
                             </Button>
                         </div>
-                        {plainPassword && !passwordDownloaded && !selectedItem?.$id && (
-                            <div className="mt-2 p-3 bg-cyan-500/10 border border-cyan-500/30 rounded-md">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm text-cyan-400 font-medium">⚠️ Download Event Pass</p>
-                                        <p className="text-xs text-white/60 mt-1">
-                                            This password will be hashed after saving. Download it now (one-time only).
-                                        </p>
-                                    </div>
-                                    <Button
-                                        type="button"
-                                        onClick={downloadPassword}
-                                        className="bg-cyan-500 hover:bg-cyan-400 text-black shrink-0"
-                                    >
-                                        <Download className="w-4 h-4 mr-2" />
-                                        Download
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                        <p className="text-xs text-white/50">
-                            Auto-generated: 8 characters with uppercase, lowercase, numbers, and symbols (@#_)
-                        </p>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Event Rules</label>
@@ -935,26 +874,8 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
-                        {plainPassword && !passwordDownloaded && !selectedItem?.$id ? (
-                            <>
-                                <Button type="button" variant="ghost" onClick={handleCloseForm}>
-                                    Skip Download
-                                </Button>
-                                <Button 
-                                    type="button"
-                                    onClick={downloadPassword}
-                                    className="bg-cyan-500 text-black hover:bg-cyan-400"
-                                >
-                                    <Download className="w-4 h-4 mr-2" />
-                                    Download Password & Close
-                                </Button>
-                            </>
-                        ) : (
-                            <>
-                                <Button type="button" variant="ghost" onClick={handleCloseForm}>Cancel</Button>
-                                <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>
-                            </>
-                        )}
+                        <Button type="button" variant="ghost" onClick={handleCloseForm}>Cancel</Button>
+                        <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>
                     </div>
                 </form>
             </Modal>

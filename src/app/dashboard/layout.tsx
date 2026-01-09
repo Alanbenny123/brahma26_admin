@@ -2,7 +2,7 @@
 
 import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database } from "lucide-react";
+import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const navItems = [
     { name: "Tickets", href: "/dashboard/tickets", icon: Ticket },
     { name: "Events", href: "/dashboard/events", icon: Calendar },
     { name: "Attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
+    { name: "Transactions", href: "/dashboard/transactions", icon: Receipt },
     { name: "Sync", href: "/dashboard/sync", icon: RefreshCw },
     { name: "Storage", href: "/dashboard/storage-example", icon: ImageIcon },
     { name: "Data Fetch", href: "/dashboard/data-example", icon: Database },
