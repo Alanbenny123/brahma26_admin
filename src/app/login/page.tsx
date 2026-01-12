@@ -4,16 +4,34 @@ import { login } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
     const [error, setError] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
+
+    // Clear any cached data when login page loads
+    useEffect(() => {
+        // Force a hard reload of the router cache
+        router.refresh();
+    }, [router]);
 
     async function handleSubmit(formData: FormData) {
-        const result = await login(formData);
-        if (result?.error) {
-            setError(result.error);
+        setError(null);
+        setIsLoading(true);
+        
+        try {
+            const result = await login(formData);
+            if (result?.error) {
+                setError(result.error);
+            }
+        } catch (err) {
+            setError("An unexpected error occurred. Please try again.");
+        } finally {
+            setIsLoading(false);
         }
     }
 
@@ -37,8 +55,8 @@ export default function LoginPage() {
                     <CardContent>
                         <form action={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-gray-300">Username</label>
-                                <Input name="username" placeholder="Enter admin username" required className="bg-white/5 border-white/10" />
+                                <label className="text-sm font-medium text-gray-300">Email</label>
+                                <Input name="email" type="email" placeholder="Enter admin email" required className="bg-white/5 border-white/10" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-300">Password</label>
@@ -47,8 +65,12 @@ export default function LoginPage() {
                             {error && (
                                 <p className="text-red-400 text-sm text-center">{error}</p>
                             )}
-                            <Button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-black mt-4">
-                                Enter Dashboard
+                            <Button 
+                                type="submit" 
+                                className="w-full bg-cyan-500 hover:bg-cyan-400 text-black mt-4"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Logging in..." : "Enter Dashboard"}
                             </Button>
                         </form>
                     </CardContent>

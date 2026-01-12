@@ -154,13 +154,39 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
-        // For events, check for duplicates first
+        // For events, validate and check for duplicates
         if (type === 'events') {
+            const VALID_CATEGORIES = ['TECHNICAL', 'CULTURAL', 'GENERAL'];
             const duplicates: Array<{ event_name: string; date: string; index: number }> = [];
             const validItems: any[] = [];
+            const validationErrors: Array<{ event_name: string; error: string; index: number }> = [];
             
             for (let i = 0; i < dataList.length; i++) {
                 const data = dataList[i];
+                
+                // Validate required category field
+                if (!data.category || typeof data.category !== 'string') {
+                    validationErrors.push({
+                        event_name: data.event_name || 'Unknown',
+                        error: 'Category is required and must be a string',
+                        index: i + 1
+                    });
+                    continue;
+                }
+                
+                // Validate category is in enum
+                if (!VALID_CATEGORIES.includes(data.category.toUpperCase())) {
+                    validationErrors.push({
+                        event_name: data.event_name || 'Unknown',
+                        error: `Invalid category: "${data.category}". Must be one of: ${VALID_CATEGORIES.join(', ')}`,
+                        index: i + 1
+                    });
+                    continue;
+                }
+                
+                // Ensure category is uppercase (normalize)
+                data.category = data.category.toUpperCase();
+                
                 if (data.event_name && data.date) {
                     const duplicateCheck = await checkEventExists(data.event_name, data.date);
                     if (duplicateCheck.exists) {
@@ -177,6 +203,20 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
                 }
             }
             
+            // If validation errors found, return error with details
+            if (validationErrors.length > 0) {
+                const errorList = validationErrors.map(e => 
+                    `  • Row ${e.index} (${e.event_name}): ${e.error}`
+                ).join('\n');
+                
+                return { 
+                    success: false, 
+                    error: `Found ${validationErrors.length} validation error(s):\n${errorList}`,
+                    validationErrors,
+                    validCount: validItems.length
+                };
+            }
+            
             // If duplicates found, return error with details
             if (duplicates.length > 0) {
                 const duplicateList = duplicates.map(d => 
@@ -191,10 +231,15 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
                     duplicateCount: duplicates.length
                 };
             }
+            
+            // Use validated items
+            dataList = validItems;
         }
         
         const promises = dataList.map(data => {
-            const documentId = type === 'events' ? generateEventId(data.fest) : ID.unique();
+            // Use ID.unique() to generate unique IDs instead of generateEventId
+            // which can produce duplicates for events with the same fest
+            const documentId = ID.unique();
             return databases.createDocument(
                 appwriteConfig.databaseId,
                 collectionId,

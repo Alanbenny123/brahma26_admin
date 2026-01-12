@@ -23,5 +23,6 @@ export const appwriteConfig = {
         events: 'events',
         attendance: 'attendence',
         transactions: 'transaction',
+        admin: 'admin',
     }
 }

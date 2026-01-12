@@ -364,32 +364,38 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 "completed", "poster", "event_rules", "details", "phone_number"
             ];
 
-            const headers = rawHeaders.map(h => {
+            const headers = rawHeaders.map((h, idx) => {
                 let normalized = h.toLowerCase().trim().replace(/[:?]/g, '').replace(/\s+/g, '_');
                 // Target mappings for the specific CSV format provided
                 if (normalized === "event") return "event_name";
                 if (normalized === "event_name") return "event_name";
-                if (normalized === "which_fest") return "fest";
+                if (normalized === "which_fest" || normalized === "fest") return "fest";
                 if (normalized === "event_description" || normalized === "event_desc") return "details";
-                if (normalized === "event_rules_and_regulations") return "event_rules";
+                if (normalized === "event_rules_and_regulations" || normalized === "event_rule" || normalized === "rules") return "event_rules";
                 if (normalized === "event_date") return "date";
                 if (normalized === "event_time") return "time";
-                if (normalized === "no_of_slots" || normalized === "no_of_slot") return "slots";
-                if (normalized === "event_reg_amount" || normalized === "event_registration_fee") return "amount";
-                if (normalized === "phone_number_of_coordinator" || normalized === "phone_number") return "phone_number";
+                if (normalized === "no_of_slots" || normalized === "no_of_slot" || normalized === "slots") return "slots";
+                if (normalized === "event_reg_amount" || normalized === "event_registration_fee" || normalized === "event__reg_amount") return "amount";
+                if (normalized === "phone_number_of_coordinator" || normalized === "phone_number" || normalized === "phone_nur") return "phone_number";
                 if (normalized === "event_pass" || normalized === "pass") return "event_pass";
-                if (normalized === "rules") return "event_rules";
-                if (normalized === "phone_number" || normalized === "phone" || normalized === "contact") return "phone_number";
-                if (normalized === "coordinators" || normalized === "coordinator") return "coordinator";
+                if (normalized === "coordinators" || normalized === "coordinator" || normalized === "coordinat") return "coordinator";
+                if (normalized === "category" || normalized === "event_category" || normalized === "category_type") return "category";
+                if (normalized === "score") return "score";
+                
+                console.log(`Header[${idx}]: "${h}" -> normalized: "${normalized}"`);
                 return normalized;
             });
 
             // Help debug: Check if event_name column was actually mapped
+            console.log("=== CSV UPLOAD DEBUG ===");
+            console.log("Mapped headers:", headers);
             if (!headers.includes("event_name")) {
                 alert("Missing required column: 'Event' or 'Event Name' not found in CSV. Please check your headers.");
                 console.log("Detected headers (normalized):", headers);
                 return;
             }
+            console.log("Category column index:", headers.indexOf("category"));
+            console.log("=== END DEBUG ===")
 
             const processedItems = allRows.slice(1)
                 .filter(row => row.some(cell => cell.trim() !== "")) // Robustness: Ignore rows that are completely empty
@@ -430,7 +436,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             return;
                         }
 
-                        if (!header || !allowedKeys.includes(header)) return;
+                        if (!header || !allowedKeys.includes(header)) {
+                            // Skip unmapped headers but log them for debugging
+                            if (header && !allowedKeys.includes(header)) {
+                                console.log(`Skipping unmapped header: "${header}" with value: "${val}"`);
+                            }
+                            return;
+                        }
 
                         if (header === "amount") {
                             // Ensure amount is a string and max 50 chars
@@ -448,7 +460,10 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                                 item[header] = splitVals;
                             }
                         } else if (header === "category") {
-                            item[header] = val.toUpperCase();
+                            // Always set category from CSV, even if GENERAL
+                            const categoryValue = val.trim().toUpperCase();
+                            item[header] = categoryValue;
+                            console.log(`✓ Category set for "${item.event_name}": val="${val.trim()}" -> item.category="${item[header]}"`);
                         } else if (header === "fest") {
                             item[header] = val.toUpperCase() || "GENERAL";
                         } else {
@@ -471,7 +486,11 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     }
                     
                     if (!item.event_rules) item.event_rules = "TBA";
-                    if (!item.category) item.category = "GENERAL";
+                    console.log(`Before defaults - Event: "${item.event_name}", category: "${item.category}"`);
+                    if (!item.category) {
+                        item.category = "GENERAL";
+                        console.log(`Applied default category for "${item.event_name}"`);
+                    }
                     if (!item.fest) item.fest = "GENERAL";
                     item.winners = item.winners || [];
                     item.coordinator = item.coordinator || [];

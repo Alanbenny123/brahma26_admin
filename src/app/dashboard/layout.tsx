@@ -4,7 +4,8 @@ import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt } from "lucide-react";
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useTransition } from 'react';
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -24,6 +25,23 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const pathname = usePathname();
+    const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+
+    const handleLogout = async () => {
+        startTransition(async () => {
+            try {
+                // Clear any client-side cache
+                router.refresh();
+                // Call logout server action
+                await logout();
+            } catch (error) {
+                console.error("Logout error:", error);
+                // Force navigation to login even if server action fails
+                window.location.href = '/login';
+            }
+        });
+    };
 
     return (
         <div className="min-h-screen bg-black/95 relative overflow-hidden">
@@ -69,11 +87,16 @@ export default function DashboardLayout({
                                 <Home className="w-4 h-4 text-gray-400" />
                             </Button>
                         </Link>
-                        <form action={logout}>
-                            <Button variant="ghost" size="icon" type="submit" className="text-red-400 hover:bg-red-900/10 hover:text-red-300">
-                                <LogOut className="w-4 h-4" />
-                            </Button>
-                        </form>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={handleLogout}
+                            disabled={isPending}
+                            className="text-red-400 hover:bg-red-900/10 hover:text-red-300"
+                            title="Logout"
+                        >
+                            <LogOut className="w-4 h-4" />
+                        </Button>
                     </div>
                 </div>
             </header>

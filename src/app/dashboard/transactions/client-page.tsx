@@ -25,7 +25,6 @@ interface ClientTransactionsPageProps {
 export default function ClientTransactionsPage({ initialData, total }: ClientTransactionsPageProps) {
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
-    const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<TransactionType | null>(null);
     const [formData, setFormData] = useState<Partial<TransactionType>>({});
 
@@ -53,12 +52,6 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
         setSelectedItem(item);
         setFormData(item);
         setIsEditOpen(true);
-    };
-
-    const handleCreateClick = () => {
-        setSelectedItem(null);
-        setFormData({});
-        setIsCreateOpen(true);
     };
 
     const confirmDelete = async () => {
@@ -95,11 +88,8 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
 
         if (selectedItem && selectedItem.$id) {
             await updateItem('transactions', selectedItem.$id, formData);
-        } else {
-            await createItem('transactions', formData);
         }
         setIsEditOpen(false);
-        setIsCreateOpen(false);
         setSelectedItem(null);
         setFormData({});
     };
@@ -167,14 +157,6 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                         subValue="Graphic analysis"
                     />
                 </div>
-                <div onClick={handleCreateClick} className="cursor-pointer">
-                    <StatsCard
-                        title="Add Transaction"
-                        value="Create New"
-                        icon={Plus}
-                        color="text-pink-500"
-                    />
-                </div>
             </div>
 
             <DataTable
@@ -211,15 +193,14 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                 </div>
             </Modal>
 
-            {/* Edit/Create Modal */}
+            {/* Edit Modal */}
             <Modal
-                isOpen={isEditOpen || isCreateOpen}
+                isOpen={isEditOpen}
                 onClose={() => {
                     setIsEditOpen(false);
-                    setIsCreateOpen(false);
                     setFormData({});
                 }}
-                title={selectedItem ? "Edit Transaction" : "Create Transaction"}
+                title="Edit Transaction"
             >
                 <form onSubmit={handleSave} className="space-y-4 mt-2">
                     <div className="space-y-2">
@@ -263,7 +244,6 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                             variant="ghost" 
                             onClick={() => {
                                 setIsEditOpen(false);
-                                setIsCreateOpen(false);
                                 setFormData({});
                             }}
                         >
