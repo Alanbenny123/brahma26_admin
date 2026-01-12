@@ -150,7 +150,12 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
     }
 }
 
-export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'attendance', dataList: any[]) {
+type CreateManyResult = 
+    | { success: true; created: number }
+    | { success: false; error: string; validationErrors?: Array<{ event_name: string; error: string; index: number }>; validCount?: number }
+    | { success: false; error: string; duplicates: Array<{ event_name: string; date: string; index: number }>; validCount: number; duplicateCount: number };
+
+export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'attendance', dataList: any[]): Promise<CreateManyResult> {
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {

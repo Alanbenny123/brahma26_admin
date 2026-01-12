@@ -546,7 +546,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 alert(`Successfully uploaded ${result.created || dataToUpload.length} events.`);
             } else {
                 // Show detailed error message for duplicates
-                if (result.duplicates && result.duplicateCount) {
+                if ('duplicates' in result && 'duplicateCount' in result) {
                     const errorMsg = typeof result.error === 'string' 
                         ? result.error 
                         : `Found ${result.duplicateCount} duplicate event(s). These events already exist in the database.`;
