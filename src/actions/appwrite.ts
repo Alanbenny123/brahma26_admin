@@ -108,9 +108,13 @@ export async function getTransactions() {
     return await getCollectionData(appwriteConfig.collections.transactions);
 }
 
+export async function getCertificates() {
+    return await getCollectionData(appwriteConfig.collections.certificates);
+}
+
 // --- Mutations ---
 
-export async function deleteItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions', id: string) {
+export async function deleteItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions' | 'certificates', id: string) {
     const collectionId = appwriteConfig.collections[type];
     const result = await deleteDocument(collectionId, id);
     if (result.success) {
@@ -119,7 +123,7 @@ export async function deleteItem(type: 'users' | 'tickets' | 'events' | 'attenda
     return result;
 }
 
-export async function createItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions', data: any) {
+export async function createItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions' | 'certificates', data: any) {
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
@@ -261,7 +265,7 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
     }
 }
 
-export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions', id: string, data: any) {
+export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attendance' | 'transactions' | 'certificates', id: string, data: any) {
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
 
@@ -332,4 +336,54 @@ export async function getTicketsWithEvents() {
     }));
 
     return { tickets: enrichedTickets, total };
+}
+
+// --- IEE OPERATIONS ---
+
+export async function getIEE() {
+    return getCollectionData(appwriteConfig.collections.iee);
+}
+
+export async function createIEE(data: { mebership_id: string; validity: boolean }) {
+    const { databases } = await createAdminClient();
+    try {
+        const response = await databases.createDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.iee,
+            ID.unique(),
+            {
+                mebership_id: data.mebership_id,
+                validity: data.validity,
+            }
+        );
+        revalidatePath('/dashboard/iee');
+        return response;
+    } catch (error) {
+        console.error("Error creating IEE record:", error);
+        throw error;
+    }
+}
+
+export async function updateIEE(documentId: string, data: { mebership_id: string; validity: boolean }) {
+    const { databases } = await createAdminClient();
+    try {
+        const response = await databases.updateDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.iee,
+            documentId,
+            {
+                mebership_id: data.mebership_id,
+                validity: data.validity,
+            }
+        );
+        revalidatePath('/dashboard/iee');
+        return response;
+    } catch (error) {
+        console.error("Error updating IEE record:", error);
+        throw error;
+    }
+}
+
+export async function deleteIEE(documentId: string) {
+    return deleteDocument(appwriteConfig.collections.iee, documentId);
 }

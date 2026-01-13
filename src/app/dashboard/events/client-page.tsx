@@ -550,12 +550,12 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     const errorMsg = typeof result.error === 'string' 
                         ? result.error 
                         : `Found ${result.duplicateCount} duplicate event(s). These events already exist in the database.`;
-                    alert(`❌ Upload Failed\n\n${errorMsg}\n\nPlease remove duplicate events from your CSV and try again.`);
+                    alert(`Upload Failed\n\n${errorMsg}\n\nPlease remove duplicate events from your CSV and try again.`);
                 } else {
                     const errorMsg = typeof result.error === 'string' 
                         ? result.error 
                         : 'Failed to upload events.';
-                    alert(`❌ Upload Failed\n\n${errorMsg}\n\nCheck console for details.`);
+                    alert(`Upload Failed\n\n${errorMsg}\n\nCheck console for details.`);
                 }
                 console.error('Bulk upload error:', result);
             }

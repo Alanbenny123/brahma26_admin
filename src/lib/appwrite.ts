@@ -24,5 +24,7 @@ export const appwriteConfig = {
         attendance: 'attendence',
         transactions: 'transaction',
         admin: 'admin',
+        certificates: 'certificates',
+        iee: 'iee',
     }
 }
