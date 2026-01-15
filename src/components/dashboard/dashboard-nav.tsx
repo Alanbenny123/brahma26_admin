@@ -25,6 +25,7 @@ const moreNavItems = [
     { name: "IEI Records", href: "/dashboard/iei", icon: Database },
     { name: "Admins", href: "/dashboard/admins", icon: Shield },
     { name: "Sync", href: "/dashboard/sync", icon: RefreshCw },
+    { name: "Migrate Events", href: "/dashboard/migrate-events", icon: RefreshCw },
     { name: "Data Fetch", href: "/dashboard/data-example", icon: Database },
 ];
 
