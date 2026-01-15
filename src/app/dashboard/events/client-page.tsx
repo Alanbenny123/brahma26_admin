@@ -251,6 +251,28 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         return [];
     };
 
+    // Convert 24-hour time to 12-hour with AM/PM
+    const convertTo12Hour = (time24: string): string => {
+        if (!time24) return '';
+        const [hours, minutes] = time24.split(':').map(Number);
+        const period = hours >= 12 ? 'PM' : 'AM';
+        const hours12 = hours % 12 || 12;
+        return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+    };
+
+    // Convert 12-hour time with AM/PM to 24-hour
+    const convertTo24Hour = (time12: string): string => {
+        if (!time12 || (!time12.includes('AM') && !time12.includes('PM'))) return time12;
+        const match = time12.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!match) return time12;
+        let hours = parseInt(match[1]);
+        const minutes = match[2];
+        const period = match[3].toUpperCase();
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    };
+
     const handleOverview = () => {
         const totalEvents = initialData.length;
 
@@ -452,9 +474,45 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             const amountStr = String(val || "0").trim();
                             item[header] = amountStr.length > 50 ? amountStr.substring(0, 50) : amountStr;
                         } else if (header === "slots") {
-                            item[header] = Number(val.replace(/[^0-9.-]+/g, "")) || 0;
+                            item[header] = Math.max(0, Number(val.replace(/[^0-9.-]+/g, "")) || 0);
                         } else if (header === "members_count") {
-                            item[header] = Number(val.replace(/[^0-9.-]+/g, "")) || 0;
+                            item[header] = Math.max(0, Number(val.replace(/[^0-9.-]+/g, "")) || 0);
+                        } else if (header === "date") {
+                            // Normalize date to yyyy-MM-dd format
+                            const dateVal = val.trim();
+                            if (dateVal) {
+                                // Try to parse various date formats and convert to yyyy-MM-dd
+                                const date = new Date(dateVal);
+                                if (!isNaN(date.getTime())) {
+                                    const year = date.getFullYear();
+                                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                                    const day = String(date.getDate()).padStart(2, '0');
+                                    item[header] = `${year}-${month}-${day}`;
+                                } else {
+                                    item[header] = dateVal;
+                                }
+                            }
+                        } else if (header === "time") {
+                            // Convert any time format to 12-hour with AM/PM
+                            const timeVal = val.trim();
+                            if (timeVal) {
+                                // If it's already in AM/PM format, keep it
+                                if (timeVal.includes('AM') || timeVal.includes('PM')) {
+                                    item[header] = timeVal;
+                                } else {
+                                    // Assume it's 24-hour format and convert
+                                    const match = timeVal.match(/(\d+):(\d+)/);
+                                    if (match) {
+                                        const hours = parseInt(match[1]);
+                                        const minutes = match[2];
+                                        const period = hours >= 12 ? 'PM' : 'AM';
+                                        const hours12 = hours % 12 || 12;
+                                        item[header] = `${hours12}:${minutes} ${period}`;
+                                    } else {
+                                        item[header] = timeVal;
+                                    }
+                                }
+                            }
                         } else if (header === "completed") {
                             item[header] = val.toLowerCase() === "true" || val === "1";
                         } else if (header === "winners" || header === "coordinator") {
@@ -818,9 +876,14 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                         <label className="text-sm text-gray-400">Time</label>
                         <Input
                             type="time"
-                            value={formData.time || ''}
-                            onChange={(e) => setFormData({ ...formData, time: e.target.value })}
+                            value={formData.time ? (formData.time.includes('AM') || formData.time.includes('PM') ? convertTo24Hour(formData.time) : formData.time) : ''}
+                            onChange={(e) => {
+                                const time24 = e.target.value;
+                                const time12 = convertTo12Hour(time24);
+                                setFormData({ ...formData, time: time12 });
+                            }}
                         />
+                        <p className="text-xs text-gray-500">Format: {formData.time || 'HH:MM AM/PM'}</p>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
@@ -835,16 +898,18 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                             <label className="text-sm text-gray-400">Slots</label>
                             <Input
                                 type="number"
+                                min="0"
                                 value={formData.slots || ''}
-                                onChange={(e) => setFormData({ ...formData, slots: Number(e.target.value) })}
+                                onChange={(e) => setFormData({ ...formData, slots: Math.max(0, Number(e.target.value)) })}
                                 required
                             />
                         </div>                        <div className="space-y-2">
                             <label className="text-sm text-gray-400">Members Count</label>
                             <Input
                                 type="number"
+                                min="0"
                                 value={formData.members_count || ''}
-                                onChange={(e) => setFormData({ ...formData, members_count: Number(e.target.value) })}
+                                onChange={(e) => setFormData({ ...formData, members_count: Math.max(0, Number(e.target.value)) })}
                                 required
                             />
                         </div>                    </div>
