@@ -82,13 +82,14 @@ async function deleteDocument(collectionId: string, documentId: string) {
 
 // --- Collection Specific Getters ---
 
-// Helper to check if event already exists (checks event_name + fest combination)
-export async function checkEventExists(eventName: string, fest: string, excludeId?: string) {
+// Helper to check if event already exists (checks event_name + fest + date combination)
+export async function checkEventExists(eventName: string, fest: string, date: string, excludeId?: string) {
     const { databases } = await createAdminClient();
     try {
         const queries = [
             Query.equal('event_name', eventName),
-            Query.equal('fest', fest)
+            Query.equal('fest', fest),
+            Query.equal('date', date)
         ];
         
         const response = await databases.listDocuments(
@@ -149,13 +150,13 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
-        // Check for duplicate events before creating (event_name + fest combination)
-        if (type === 'events' && data.event_name && data.fest) {
-            const duplicateCheck = await checkEventExists(data.event_name, data.fest);
+        // Check for duplicate events before creating (event_name + fest + date combination)
+        if (type === 'events' && data.event_name && data.fest && data.date) {
+            const duplicateCheck = await checkEventExists(data.event_name, data.fest, data.date);
             if (duplicateCheck.exists) {
                 return { 
                     success: false, 
-                    error: `Event "${data.event_name}" for fest "${data.fest}" already exists. Cannot create duplicate events.`,
+                    error: `Event "${data.event_name}" for fest "${data.fest}" on ${data.date} already exists. Cannot create duplicate events.`,
                     isDuplicate: true
                 };
             }
@@ -255,9 +256,9 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
                     }
                 }
                 
-                // Check for duplicates based on event_name + fest combination
-                if (data.event_name && data.fest) {
-                    const duplicateCheck = await checkEventExists(data.event_name, data.fest);
+                // Check for duplicates based on event_name + fest + date combination
+                if (data.event_name && data.fest && data.date) {
+                    const duplicateCheck = await checkEventExists(data.event_name, data.fest, data.date);
                     if (duplicateCheck.exists) {
                         duplicates.push({ 
                             event_name: data.event_name, 
@@ -357,8 +358,8 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
     }
 
     try {
-        // Check for duplicate events when updating event name or date
-        if (type === 'events' && (cleanData.event_name || cleanData.date)) {
+        // Check for duplicate events when updating event name, fest, or date
+        if (type === 'events' && (cleanData.event_name || cleanData.fest || cleanData.date)) {
             // Get current event data to fill in missing fields
             const currentDoc = await databases.getDocument(
                 appwriteConfig.databaseId,
@@ -367,14 +368,15 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
             );
             
             const eventName = cleanData.event_name || currentDoc.event_name;
+            const eventFest = cleanData.fest || currentDoc.fest;
             const eventDate = cleanData.date || currentDoc.date;
             
-            if (eventName && eventDate) {
-                const duplicateCheck = await checkEventExists(eventName, eventDate, id);
+            if (eventName && eventFest && eventDate) {
+                const duplicateCheck = await checkEventExists(eventName, eventFest, eventDate, id);
                 if (duplicateCheck.exists) {
                     return { 
                         success: false, 
-                        error: `Event "${eventName}" on ${eventDate} already exists. Cannot have duplicate events.`,
+                        error: `Event "${eventName}" for fest "${eventFest}" on ${eventDate} already exists. Cannot have duplicate events.`,
                         isDuplicate: true
                     };
                 }
