@@ -24,6 +24,7 @@ import { createAdminClient, appwriteConfig } from "@/lib/appwrite";
 import { ID, Query } from "node-appwrite";
 import { revalidatePath } from "next/cache";
 import { generateEventId } from "@/lib/utils";
+import { formatTime, formatDate } from "@/lib/date-utils";
 
 // --- Generic Helpers ---
 
@@ -150,6 +151,16 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
     const { databases } = await createAdminClient();
     const collectionId = appwriteConfig.collections[type];
     try {
+        // Format date and time for events
+        if (type === 'events') {
+            if (data.date) {
+                data.date = formatDate(data.date);
+            }
+            if (data.time) {
+                data.time = formatTime(data.time);
+            }
+        }
+
         // Check for duplicate events before creating (event_name + fest + date combination)
         if (type === 'events' && data.event_name && data.fest && data.date) {
             const duplicateCheck = await checkEventExists(data.event_name, data.fest, data.date);
@@ -236,6 +247,14 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
                 
                 // Ensure category is uppercase (normalize)
                 data.category = data.category.toUpperCase();
+                
+                // Format date and time
+                if (data.date) {
+                    data.date = formatDate(data.date);
+                }
+                if (data.time) {
+                    data.time = formatTime(data.time);
+                }
                 
                 // Validate and truncate string fields
                 if (data.details) {
@@ -358,6 +377,16 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
     }
 
     try {
+        // Format date and time for events
+        if (type === 'events') {
+            if (cleanData.date) {
+                cleanData.date = formatDate(cleanData.date);
+            }
+            if (cleanData.time) {
+                cleanData.time = formatTime(cleanData.time);
+            }
+        }
+
         // Check for duplicate events when updating event name, fest, or date
         if (type === 'events' && (cleanData.event_name || cleanData.fest || cleanData.date)) {
             // Get current event data to fill in missing fields

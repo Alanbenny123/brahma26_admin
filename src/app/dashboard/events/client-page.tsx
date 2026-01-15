@@ -11,6 +11,7 @@ import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "luci
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
+import { formatTime, formatDate } from "@/lib/date-utils";
 import React, { useRef } from "react";
 import bcrypt from "bcryptjs";
 
@@ -478,40 +479,16 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                         } else if (header === "members_count") {
                             item[header] = Math.max(0, Number(val.replace(/[^0-9.-]+/g, "")) || 0);
                         } else if (header === "date") {
-                            // Normalize date to yyyy-MM-dd format
+                            // Normalize date to dd-mm-yyyy format
                             const dateVal = val.trim();
                             if (dateVal) {
-                                // Try to parse various date formats and convert to yyyy-MM-dd
-                                const date = new Date(dateVal);
-                                if (!isNaN(date.getTime())) {
-                                    const year = date.getFullYear();
-                                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                                    const day = String(date.getDate()).padStart(2, '0');
-                                    item[header] = `${year}-${month}-${day}`;
-                                } else {
-                                    item[header] = dateVal;
-                                }
+                                item[header] = formatDate(dateVal);
                             }
                         } else if (header === "time") {
-                            // Convert any time format to 12-hour with AM/PM
+                            // Convert any time format to 12-hour with AM/PM (no seconds)
                             const timeVal = val.trim();
                             if (timeVal) {
-                                // If it's already in AM/PM format, keep it
-                                if (timeVal.includes('AM') || timeVal.includes('PM')) {
-                                    item[header] = timeVal;
-                                } else {
-                                    // Assume it's 24-hour format and convert
-                                    const match = timeVal.match(/(\d+):(\d+)/);
-                                    if (match) {
-                                        const hours = parseInt(match[1]);
-                                        const minutes = match[2];
-                                        const period = hours >= 12 ? 'PM' : 'AM';
-                                        const hours12 = hours % 12 || 12;
-                                        item[header] = `${hours12}:${minutes} ${period}`;
-                                    } else {
-                                        item[header] = timeVal;
-                                    }
-                                }
+                                item[header] = formatTime(timeVal);
                             }
                         } else if (header === "completed") {
                             item[header] = val.toLowerCase() === "true" || val === "1";

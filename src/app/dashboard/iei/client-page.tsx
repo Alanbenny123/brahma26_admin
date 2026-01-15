@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-react";
 import { deleteIEI, createIEI, updateIEI } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { formatDate } from "@/lib/date-utils";
 
 interface IEIRecord {
     $id: string;
@@ -30,16 +31,6 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-<<<<<<< HEAD
-=======
-    const columns: { key: keyof IEIRecord; label: string; sortable?: boolean }[] = [
-        { key: "mebership_id", label: "Membership ID", sortable: true },
-        { key: "validity", label: "Valid", sortable: true },
-        { key: "$id", label: "Record ID", sortable: true },
-        { key: "$createdAt", label: "Created At", sortable: true },
-    ];
-
->>>>>>> cbe93f1 (Admin dashboard updates)
     const handleDelete = async () => {
         if (!selectedItem) return;
         setIsLoading(true);
@@ -61,8 +52,6 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
             setError('Membership ID is required');
             return;
         }
-<<<<<<< HEAD
-=======
         
         // Check for duplicate membership ID
         const isDuplicate = initialData.some(
@@ -73,7 +62,6 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
             return;
         }
         
->>>>>>> cbe93f1 (Admin dashboard updates)
         setIsLoading(true);
         setError('');
         try {
@@ -96,8 +84,6 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
             setError('Membership ID is required');
             return;
         }
-<<<<<<< HEAD
-=======
         
         // Check for duplicate membership ID (excluding current record)
         const isDuplicate = initialData.some(
@@ -109,7 +95,6 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
             return;
         }
         
->>>>>>> cbe93f1 (Admin dashboard updates)
         setIsLoading(true);
         setError('');
         try {
@@ -155,16 +140,10 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
         }
     };
 
-<<<<<<< HEAD
-    const processedData = initialData.map(record => ({
-        ...record,
-        validity: record.validity as any,
-=======
     // Process data to show validity as a badge
     const processedData = initialData.map(record => ({
         ...record,
         validity: record.validity as any, // Keep the boolean value for sorting/filtering
->>>>>>> cbe93f1 (Admin dashboard updates)
     }));
 
     return (
@@ -173,11 +152,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-<<<<<<< HEAD
-                        <Database className="w-8 h-8 text-violet-400" />
-=======
                         <Database className="w-8 h-8 text-cyan-400" />
->>>>>>> cbe93f1 (Admin dashboard updates)
                         IEI Records
                     </h1>
                     <p className="text-gray-400 mt-1">Manage IEI membership records</p>
@@ -188,11 +163,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
                         setError('');
                         setIsCreateOpen(true);
                     }}
-<<<<<<< HEAD
-                    className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white flex items-center gap-2"
-=======
                     className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white flex items-center gap-2"
->>>>>>> cbe93f1 (Admin dashboard updates)
                 >
                     <Plus className="w-4 h-4" />
                     Add Record
@@ -212,19 +183,11 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
                         <table className="w-full">
                             <thead className="bg-white/5">
                                 <tr className="border-b border-white/10">
-<<<<<<< HEAD
-                                    <th className="text-left p-4 text-sm font-medium text-violet-400">Membership ID</th>
-                                    <th className="text-left p-4 text-sm font-medium text-violet-400">Validity Status</th>
-                                    <th className="text-left p-4 text-sm font-medium text-violet-400">Record ID</th>
-                                    <th className="text-left p-4 text-sm font-medium text-violet-400">Created At</th>
-                                    <th className="text-right p-4 text-sm font-medium text-violet-400">Actions</th>
-=======
                                     <th className="text-left p-4 text-sm font-medium text-cyan-400">Membership ID</th>
                                     <th className="text-left p-4 text-sm font-medium text-cyan-400">Validity Status</th>
                                     <th className="text-left p-4 text-sm font-medium text-cyan-400">Record ID</th>
                                     <th className="text-left p-4 text-sm font-medium text-cyan-400">Created At</th>
                                     <th className="text-right p-4 text-sm font-medium text-cyan-400">Actions</th>
->>>>>>> cbe93f1 (Admin dashboard updates)
                                 </tr>
                             </thead>
                             <tbody>
@@ -257,7 +220,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
                                             </td>
                                             <td className="p-4 text-gray-300 text-sm">{record.$id}</td>
                                             <td className="p-4 text-gray-300 text-sm">
-                                                {new Date(record.$createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                                {formatDate(record.$createdAt)}
                                             </td>
                                             <td className="p-4 text-right space-x-2">
                                                 <Button
@@ -363,11 +326,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
                     <Button
                         onClick={handleCreate}
                         disabled={isLoading}
-<<<<<<< HEAD
-                        className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
-=======
                         className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
->>>>>>> cbe93f1 (Admin dashboard updates)
                     >
                         {isLoading ? "Creating..." : "Create"}
                     </Button>
@@ -419,11 +378,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
                     <Button
                         onClick={handleUpdate}
                         disabled={isLoading}
-<<<<<<< HEAD
-                        className="bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 text-white"
-=======
                         className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white"
->>>>>>> cbe93f1 (Admin dashboard updates)
                     >
                         {isLoading ? "Updating..." : "Update"}
                     </Button>

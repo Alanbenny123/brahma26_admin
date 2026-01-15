@@ -10,6 +10,7 @@ import { Upload, Trash2, Eye, ImageIcon, Plus } from "lucide-react";
 import { uploadEventImageClient } from "@/lib/client-storage";
 import { updateItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { formatDate } from "@/lib/date-utils";
 import Image from "next/image";
 
 interface Event {
@@ -179,7 +180,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                                     <div className="text-xs text-white/40 space-y-1">
                                         {event.fest && <p>Fest: {event.fest}</p>}
                                         {event.category && <p>Category: {event.category}</p>}
-                                        {event.date && <p>Date: {event.date}</p>}
+                                        {event.date && <p>Date: {formatDate(event.date)}</p>}
                                     </div>
 
                                     {/* Action Buttons */}
@@ -340,7 +341,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                             <p>Event: {selectedEvent.event_name}</p>
                             <p>Fest: {selectedEvent.fest}</p>
                             {selectedEvent.category && <p>Category: {selectedEvent.category}</p>}
-                            {selectedEvent.date && <p>Date: {selectedEvent.date}</p>}
+                            {selectedEvent.date && <p>Date: {formatDate(selectedEvent.date)}</p>}
                             <p className="break-all">URL: <a href={selectedEvent.poster} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{selectedEvent.poster}</a></p>
                         </div>
                         <Button

@@ -9,6 +9,7 @@ import { Upload, Trash2, Eye, Award, Plus } from "lucide-react";
 import { uploadCertificateClient } from "@/lib/client-storage";
 import { getCertificatesFromFirebase, saveCertificateToFirebase, deleteCertificateFromFirebase } from "@/actions/certificates";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { formatDate } from "@/lib/date-utils";
 import Image from "next/image";
 
 interface Certificate {
@@ -182,7 +183,7 @@ export default function ClientCertificatesPage() {
                                 </p>
                             )}
                             <p className="text-xs text-white/40">
-                                Uploaded: {new Date(cert.uploadedAt).toLocaleDateString()}
+                                Uploaded: {formatDate(cert.uploadedAt)}
                             </p>
 
                             {/* Action Buttons */}
@@ -293,7 +294,7 @@ export default function ClientCertificatesPage() {
                         </div>
                         <div className="text-sm text-gray-400 space-y-1">
                             {selectedCert.userId && <p>User ID: {selectedCert.userId}</p>}
-                            <p>Uploaded: {new Date(selectedCert.uploadedAt).toLocaleString()}</p>
+                            <p>Uploaded: {formatDate(selectedCert.uploadedAt)}</p>
                             <p className="break-all">URL: <a href={selectedCert.url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">{selectedCert.url}</a></p>
                         </div>
                         <Button

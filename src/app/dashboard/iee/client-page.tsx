@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-react";
 import { deleteIEEE, createIEEE, updateIEEE } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { formatDate } from "@/lib/date-utils";
 
 interface IEEERecord {
     $id: string;
@@ -226,7 +227,7 @@ export default function ClientIEEEPage({ initialData, total }: ClientIEEEPagePro
                                             </td>
                                             <td className="p-4 text-gray-300 text-sm">{record.$id}</td>
                                             <td className="p-4 text-gray-300 text-sm">
-                                                {new Date(record.$createdAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                                                {formatDate(record.$createdAt)}
                                             </td>
                                             <td className="p-4 text-right space-x-2">
                                                 <Button

@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown, Search, Trash2, Edit, Filter, Download } from "lucide-react";
+import { formatTime, formatDate } from "@/lib/date-utils";
 
 interface DataTableProps<T> {
     data: T[];
@@ -296,6 +297,20 @@ export function DataTable<T extends { $id: string }>({
                                         const cellId = `${row.$id}-${String(col.key)}`;
                                         const isExpanded = expandedCell === cellId;
 
+                                        // Format dates and times
+                                        let displayValue: any = value;
+                                        const columnKey = String(col.key).toLowerCase();
+                                        
+                                        if (columnKey === 'date' && typeof value === 'string' && value) {
+                                            displayValue = formatDate(value);
+                                        } else if (columnKey === 'time' && typeof value === 'string' && value) {
+                                            displayValue = formatTime(value);
+                                        } else if (columnKey.includes('createdat') && typeof value === 'string' && value) {
+                                            displayValue = formatDate(value);
+                                        } else if (columnKey.includes('updatedat') && typeof value === 'string' && value) {
+                                            displayValue = formatDate(value);
+                                        }
+
                                         return (
                                             <TableCell
                                                 key={cellId}
@@ -303,15 +318,15 @@ export function DataTable<T extends { $id: string }>({
                                                 onClick={() => setExpandedCell(isExpanded ? null : cellId)}
                                             >
                                                 <div className={isExpanded ? "whitespace-pre-wrap" : "line-clamp-1"}>
-                                                    {col.multiline && (Array.isArray(value) || (typeof value === 'string' && value.includes(','))) ? (
-                                                        (Array.isArray(value) ? value : value.split(',')).map((item, index, array) => (
+                                                    {col.multiline && (Array.isArray(displayValue) || (typeof displayValue === 'string' && displayValue.includes(','))) ? (
+                                                        (Array.isArray(displayValue) ? displayValue : displayValue.split(',')).map((item, index, array) => (
                                                             <div key={index}>
                                                                 {String(item).trim()}{index < array.length - 1 ? ',' : ''}
                                                             </div>
                                                         ))
                                                     ) : (
-                                                        (Array.isArray(value)) ? value.join(', ') :
-                                                            (value === 0 || value === "0") ? "0" : (String(value ?? "-"))
+                                                        (Array.isArray(displayValue)) ? displayValue.join(', ') :
+                                                            (displayValue === 0 || displayValue === "0") ? "0" : (String(displayValue ?? "-"))
                                                     )}
                                                 </div>
                                             </TableCell>

@@ -2,52 +2,8 @@
 
 import { createAdminClient, appwriteConfig } from '@/lib/appwrite';
 import { Query } from 'node-appwrite';
-
-// Convert 24-hour time to 12-hour with AM/PM
-function convertTo12Hour(time24: string): string {
-    if (!time24) return '';
-    
-    // If already has AM/PM, return as is
-    if (time24.includes('AM') || time24.includes('PM')) {
-        return time24;
-    }
-    
-    // Parse 24-hour format
-    const match = time24.match(/(\d+):(\d+)/);
-    if (!match) return time24;
-    
-    const hours = parseInt(match[1]);
-    const minutes = match[2];
-    const period = hours >= 12 ? 'PM' : 'AM';
-    const hours12 = hours % 12 || 12;
-    
-    return `${hours12}:${minutes} ${period}`;
-}
-
-// Normalize date to yyyy-MM-dd format
-function normalizeDate(dateStr: string): string {
-    if (!dateStr) return '';
-    
-    // If already in yyyy-MM-dd format, return as is
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-        return dateStr;
-    }
-    
-    // Try to parse and convert to yyyy-MM-dd
-    try {
-        const date = new Date(dateStr);
-        if (!isNaN(date.getTime())) {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        }
-    } catch (error) {
-        console.error('Error parsing date:', dateStr, error);
-    }
-    
-    return dateStr;
-}
+import { formatTime, formatDate } from '@/lib/date-utils';
+import { revalidatePath } from 'next/cache';
 
 export async function migrateEventTimesAndDates() {
     const { databases } = await createAdminClient();
@@ -79,7 +35,7 @@ export async function migrateEventTimesAndDates() {
             // Check and update time
             if (event.time) {
                 const originalTime = event.time;
-                const normalizedTime = convertTo12Hour(originalTime);
+                const normalizedTime = formatTime(originalTime);
                 
                 if (originalTime !== normalizedTime) {
                     updates.time = normalizedTime;
@@ -90,7 +46,12 @@ export async function migrateEventTimesAndDates() {
             // Check and update date
             if (event.date) {
                 const originalDate = event.date;
-                const normalizedDate = normalizeDate(originalDate);
+                const normalizedDate = formatDate(originalDate);
+                
+                console.log(`Event: ${event.event_name}`);
+                console.log(`  Original date: "${originalDate}"`);
+                console.log(`  Normalized date: "${normalizedDate}"`);
+                console.log(`  Will update: ${originalDate !== normalizedDate}`);
                 
                 if (originalDate !== normalizedDate) {
                     updates.date = normalizedDate;
@@ -101,12 +62,18 @@ export async function migrateEventTimesAndDates() {
             // Update if there are changes
             if (Object.keys(updates).length > 0) {
                 try {
-                    await databases.updateDocument(
+                    console.log(`🔄 Attempting to update: ${event.event_name}`);
+                    console.log(`   Updates:`, JSON.stringify(updates, null, 2));
+                    
+                    const updated = await databases.updateDocument(
                         appwriteConfig.databaseId,
                         appwriteConfig.collections.events,
                         event.$id,
                         updates
                     );
+                    
+                    console.log(`✅ Successfully updated in Appwrite`);
+                    console.log(`   New date value:`, updated.date);
                     
                     results.updated++;
                     results.details.push({
@@ -121,6 +88,7 @@ export async function migrateEventTimesAndDates() {
                     const errorMsg = `Failed to update event ${event.event_name} (${event.$id}): ${error}`;
                     results.errors.push(errorMsg);
                     console.error(`❌ ${errorMsg}`);
+                    console.error('Error details:', error);
                 }
             } else {
                 results.skipped++;
@@ -133,6 +101,10 @@ export async function migrateEventTimesAndDates() {
         console.log(`✅ Updated: ${results.updated}`);
         console.log(`⏭️  Skipped: ${results.skipped}`);
         console.log(`❌ Errors: ${results.errors.length}`);
+
+        // Revalidate the events page to show updated data
+        revalidatePath('/dashboard/events');
+        revalidatePath('/dashboard/migrate-events');
 
         return {
             success: true,
@@ -173,7 +145,7 @@ export async function previewEventMigration() {
 
             if (event.time) {
                 const originalTime = event.time;
-                const normalizedTime = convertTo12Hour(originalTime);
+                const normalizedTime = formatTime(originalTime);
                 if (originalTime !== normalizedTime) {
                     changes.push(`Time: "${originalTime}" → "${normalizedTime}"`);
                 }
@@ -181,7 +153,7 @@ export async function previewEventMigration() {
 
             if (event.date) {
                 const originalDate = event.date;
-                const normalizedDate = normalizeDate(originalDate);
+                const normalizedDate = formatDate(originalDate);
                 if (originalDate !== normalizedDate) {
                     changes.push(`Date: "${originalDate}" → "${normalizedDate}"`);
                 }

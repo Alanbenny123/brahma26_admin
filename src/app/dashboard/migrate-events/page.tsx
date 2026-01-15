@@ -48,7 +48,7 @@ export default function MigrateEventsPage() {
                 <div>
                     <h1 className="text-3xl font-bold text-white/90">Migrate Event Times & Dates</h1>
                     <p className="text-white/60 mt-2">
-                        Normalize all existing event times to 12-hour format (AM/PM) and dates to yyyy-MM-dd format
+                        Normalize all existing event times to 12-hour format (9:00 AM) and dates to dd-mm-yyyy format
                     </p>
                 </div>
             </div>
@@ -64,7 +64,7 @@ export default function MigrateEventsPage() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-white/60">
-                            Converts 24-hour format (14:30) to 12-hour with AM/PM (2:30 PM)
+                            Converts 24-hour format (14:30) or removes seconds (10:00:00 AM) to 12-hour format (2:30 PM)
                         </p>
                     </CardContent>
                 </Card>
@@ -78,7 +78,7 @@ export default function MigrateEventsPage() {
                     </CardHeader>
                     <CardContent>
                         <p className="text-sm text-white/60">
-                            Normalizes all dates to yyyy-MM-dd format consistently
+                            Normalizes all dates to dd-mm-yyyy format consistently
                         </p>
                     </CardContent>
                 </Card>

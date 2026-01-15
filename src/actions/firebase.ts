@@ -23,6 +23,7 @@
  */
 
 import { db, rtdb } from '@/lib/firebase';
+import { formatTime, formatDate } from '@/lib/date-utils';
 import {
     collection,
     doc,
@@ -278,6 +279,14 @@ export async function upsertFirestoreEvent(eventData: any) {
     try {
         if (!eventData.appwriteId) {
             return { success: false, error: 'appwriteId is required' };
+        }
+
+        // Format date and time before storing
+        if (eventData.date) {
+            eventData.date = formatDate(eventData.date);
+        }
+        if (eventData.time) {
+            eventData.time = formatTime(eventData.time);
         }
 
         // Use Appwrite ID as the Firebase document ID
