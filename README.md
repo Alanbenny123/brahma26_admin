@@ -30,7 +30,7 @@ Admin operations dashboard for Brahma Ashwamedha built with Next.js, Firebase, a
 - Node.js 20+ installed
 - Firebase account and project
 - Appwrite account (optional)
-
+.
 ### Installation
 
 1. Clone the repository:
