@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
         }
 
         if (result?.success) {
-            console.log(`✅ Sync API Success: ${type}/${action}`, result.action || action);
-            return NextResponse.json({ success: true, result, action: result.action });
+            console.log(`✅ Sync API Success: ${type}/${action}`, (result as any).action || action);
+            return NextResponse.json({ success: true, result, action: (result as any).action || action });
         } else {
             console.error(`❌ Sync API Failed: ${type}/${action}`, result?.error);
             return NextResponse.json(
