@@ -214,6 +214,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
+            window.location.reload(); // Reload to show updated data
         } else {
             const result = await createItem('events', dataToSave);
             if (!result.success) {
@@ -226,6 +227,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
+            window.location.reload(); // Reload to show new event
         }
     };
 
