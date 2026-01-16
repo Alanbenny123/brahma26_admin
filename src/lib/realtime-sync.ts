@@ -60,7 +60,11 @@ function subscribeToUsers() {
     if (!client) return;
 
     try {
-        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+        if (!databaseId) {
+            console.error('❌ NEXT_PUBLIC_APPWRITE_DATABASE_ID is not set');
+            return;
+        }
         
         const unsubscribe = client.subscribe(
             `databases.${databaseId}.collections.users.documents`,
@@ -154,7 +158,11 @@ function subscribeToEvents() {
     if (!client) return;
 
     try {
-        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+        if (!databaseId) {
+            console.error('❌ NEXT_PUBLIC_APPWRITE_DATABASE_ID is not set');
+            return;
+        }
         
         const unsubscribe = client.subscribe(
             `databases.${databaseId}.collections.events.documents`,
@@ -268,7 +276,11 @@ function subscribeToTickets() {
     if (!client) return;
 
     try {
-        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+        if (!databaseId) {
+            console.error('❌ NEXT_PUBLIC_APPWRITE_DATABASE_ID is not set');
+            return;
+        }
         
         const unsubscribe = client.subscribe(
             `databases.${databaseId}.collections.tickets.documents`,
@@ -356,7 +368,11 @@ function subscribeToTransactions() {
     if (!client) return;
 
     try {
-        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+        if (!databaseId) {
+            console.error('❌ NEXT_PUBLIC_APPWRITE_DATABASE_ID is not set');
+            return;
+        }
         
         const unsubscribe = client.subscribe(
             `databases.${databaseId}.collections.transaction.documents`,
@@ -439,7 +455,11 @@ function subscribeToAttendance() {
     if (!client) return;
 
     try {
-        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || 'default';
+        const databaseId = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID;
+        if (!databaseId) {
+            console.error('❌ NEXT_PUBLIC_APPWRITE_DATABASE_ID is not set');
+            return;
+        }
         
         const unsubscribe = client.subscribe(
             `databases.${databaseId}.collections.attendence.documents`,
