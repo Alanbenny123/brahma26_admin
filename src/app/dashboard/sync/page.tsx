@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { RefreshCw, Database, CheckCircle, XCircle, Zap, Clock, Timer } from 'lucide-react';
+import { RefreshCw, Database, CheckCircle, XCircle, Clock, Timer } from 'lucide-react';
 
 export default function SyncPage() {
     const [syncing, setSyncing] = useState(false);
@@ -175,21 +175,6 @@ export default function SyncPage() {
                 </h1>
                 <Database className="w-12 h-12 text-cyan-400" />
             </div>
-
-            {/* Real-time Status */}
-            <Card className="glass-card border-green-500/30 bg-green-500/5">
-                <CardContent className="pt-6">
-                    <div className="flex items-center gap-3">
-                        <Zap className="w-6 h-6 text-green-400" />
-                        <div>
-                            <h3 className="text-lg font-semibold text-green-400">Real-time Sync Active</h3>
-                            <p className="text-white/60 text-sm">
-                                Changes in Appwrite are automatically synced to Firebase in real-time
-                            </p>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
 
             {/* Auto-Sync Scheduler */}
             <Card className="glass-card border-blue-500/30 bg-blue-500/5">
@@ -483,38 +468,38 @@ export default function SyncPage() {
                 </CardHeader>
                 <CardContent className="text-white/70 space-y-3">
                     <div className="space-y-2">
-                        <h4 className="text-green-400 font-semibold flex items-center gap-2">
-                            <Zap className="w-4 h-4" />
-                            Real-time Sync (Automatic)
-                        </h4>
-                        <ul className="list-disc list-inside space-y-1 ml-6">
-                            <li>Listens to Appwrite database changes in real-time</li>
-                            <li>Automatically syncs CREATE, UPDATE, DELETE operations</li>
-                            <li>Works for Users, Events, Tickets, Attendance, Admins, IEE, and IEI</li>
-                            <li>No manual intervention needed</li>
-                        </ul>
-                    </div>
-
-                    <div className="space-y-2 pt-4">
                         <h4 className="text-cyan-400 font-semibold flex items-center gap-2">
                             <RefreshCw className="w-4 h-4" />
-                            Manual Sync (One-time)
+                            Manual Sync
                         </h4>
                         <ul className="list-disc list-inside space-y-1 ml-6">
                             <li>Use to sync existing data from Appwrite to Firebase</li>
                             <li>Prevents duplicates by checking Appwrite IDs</li>
-                            <li>Useful for initial data migration</li>
+                            <li>Useful for data synchronization and backup</li>
                             <li>Can sync all at once or by collection type</li>
                             <li>Supports: Users, Events, Tickets, Transactions, Attendance, Admins, IEE, IEI</li>
+                        </ul>
+                    </div>
+
+                    <div className="space-y-2 pt-4">
+                        <h4 className="text-blue-400 font-semibold flex items-center gap-2">
+                            <Timer className="w-4 h-4" />
+                            Scheduled Auto-Sync
+                        </h4>
+                        <ul className="list-disc list-inside space-y-1 ml-6">
+                            <li>Enable automatic syncing at regular intervals</li>
+                            <li>Runs in your browser tab (keep tab open)</li>
+                            <li>Configurable interval from 5 minutes to 24 hours</li>
+                            <li>Shows next sync time and last sync status</li>
                         </ul>
                     </div>
 
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mt-4">
                         <p className="text-amber-400 font-medium">💡 Recommended Workflow:</p>
                         <ol className="list-decimal list-inside space-y-1 mt-2 ml-2">
-                            <li>Run manual sync once to migrate existing data</li>
-                            <li>Real-time sync handles all new changes automatically</li>
-                            <li>Check browser console for sync logs</li>
+                            <li>Run "Sync All Data" once to sync existing data</li>
+                            <li>Enable auto-sync for periodic synchronization</li>
+                            <li>Use individual sync buttons for specific collections as needed</li>
                         </ol>
                     </div>
                 </CardContent>
