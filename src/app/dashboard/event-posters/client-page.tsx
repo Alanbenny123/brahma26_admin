@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import { Upload, Trash2, Eye, ImageIcon, Plus } from "lucide-react";
+import { Upload, Trash2, Eye, ImageIcon, Plus, Search } from "lucide-react";
 import { uploadEventImageClient } from "@/lib/client-storage";
 import { updateItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -35,11 +35,19 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [selectedEventId, setSelectedEventId] = useState('');
     const [eventSearchTerm, setEventSearchTerm] = useState('');
+    const [mainSearchTerm, setMainSearchTerm] = useState('');
 
-    const eventsWithPosters = events.filter(e => e.poster);
-    const eventsWithoutPosters = events.filter(e => !e.poster);
+    // Filter events based on main page search term
+    const searchFilteredEvents = events.filter(event => 
+        event.event_name.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        event.fest.toLowerCase().includes(mainSearchTerm.toLowerCase()) ||
+        (event.category?.toLowerCase().includes(mainSearchTerm.toLowerCase()))
+    );
 
-    // Filter events based on search term
+    const eventsWithPosters = searchFilteredEvents.filter(e => e.poster);
+    const eventsWithoutPosters = searchFilteredEvents.filter(e => !e.poster);
+
+    // Filter events based on modal search term (for dropdown)
     const filteredEvents = events.filter(event => 
         event.event_name.toLowerCase().includes(eventSearchTerm.toLowerCase()) ||
         event.fest.toLowerCase().includes(eventSearchTerm.toLowerCase()) ||
@@ -126,6 +134,37 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
 
     return (
         <div className="space-y-6 p-6">
+            {/* Search Bar */}
+            <div className="flex items-center gap-4">
+                <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <Input
+                        type="text"
+                        placeholder="Search events by name, fest, or category..."
+                        value={mainSearchTerm}
+                        onChange={(e) => setMainSearchTerm(e.target.value)}
+                        className="pl-10 bg-white/5 border-white/10 text-white/90 placeholder:text-white/40"
+                    />
+                </div>
+                {mainSearchTerm && (
+                    <Button
+                        variant="outline"
+                        onClick={() => setMainSearchTerm('')}
+                        className="text-white/60 hover:text-white/90"
+                    >
+                        Clear
+                    </Button>
+                )}
+            </div>
+
+            {/* Results Count */}
+            {mainSearchTerm && (
+                <p className="text-sm text-white/60">
+                    Found {searchFilteredEvents.length} event{searchFilteredEvents.length !== 1 ? 's' : ''} 
+                    {eventsWithPosters.length > 0 && ` (${eventsWithPosters.length} with poster${eventsWithPosters.length !== 1 ? 's' : ''})`}
+                </p>
+            )}
+
             <div className="grid gap-4 md:grid-cols-3">
                 <StatsCard
                     title="Events with Posters"
@@ -240,7 +279,15 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                 </div>
             )}
 
-            {events.length === 0 && (
+            {searchFilteredEvents.length === 0 && mainSearchTerm && (
+                <div className="text-center py-12 text-white/50">
+                    <Search className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                    <p>No events match your search</p>
+                    <p className="text-sm mt-2">Try different keywords</p>
+                </div>
+            )}
+
+            {events.length === 0 && !mainSearchTerm && (
                 <div className="text-center py-12 text-white/50">
                     <ImageIcon className="w-16 h-16 mx-auto mb-4 opacity-30" />
                     <p>No events found</p>
