@@ -12,7 +12,7 @@ Admin operations dashboard for Brahma Ashwamedha built with Next.js, Firebase, a
 - 🔥 **Firebase Integration** - Firestore & Realtime Database support
 - 📦 **Firebase Storage** - Direct image storage with CDN delivery
 - ☁️ **Appwrite Backend** - Alternative backend support
-- 🔄 **Real-time Sync** - Auto-sync from Appwrite to Firebase
+- 🔄 **Manual Sync** - Manual sync from Appwrite to Firebase
 
 ## Tech Stack
 
@@ -75,13 +75,11 @@ brahma26-admin/
 │   │   └── page.tsx          # Home page
 │   ├── components/           # React components
 │   │   ├── dashboard/        # Dashboard-specific components
-│   │   ├── ui/               # Reusable UI components
-│   │   └── realtime-sync-provider.tsx # Real-time sync provider
+│   │   └── ui/               # Reusable UI components
 │   ├── lib/                  # Utility libraries
 │   │   ├── firebase.ts       # Firebase configuration
 │   │   ├── appwrite.ts       # Appwrite configuration
 │   │   ├── client-storage.ts # Client-side storage utilities
-│   │   ├── realtime-sync.ts  # Real-time sync logic
 │   │   └── utils.ts          # Helper functions
 │   └── middleware.ts         # Auth middleware
 ├── public/                   # Static assets
@@ -94,7 +92,6 @@ brahma26-admin/
 - **[FIREBASE_SETUP.md](./FIREBASE_SETUP.md)** - Firebase configuration guide
 - **[STORAGE_STRATEGY.md](./STORAGE_STRATEGY.md)** - Image storage strategy (Firebase Storage)
 - **[DATA_FETCHING_STRATEGY.md](./DATA_FETCHING_STRATEGY.md)** - Smart data fetching with fallback
-- **[REALTIME_SYNC_SETUP.md](./REALTIME_SYNC_SETUP.md)** - Real-time sync technical details
 - **[QUICK_START.md](./QUICK_START.md)** - Quick start guide for sync
 
 ## Available Scripts
@@ -126,7 +123,7 @@ brahma26-admin/
 ### Why This Strategy?
 1. ✅ **High Availability** - Automatic fallback ensures no downtime
 2. ✅ **Performance** - Images served via Firebase CDN
-3. ✅ **Real-time Sync** - Automatic synchronization from Appwrite to Firebase
+3. ✅ **Manual Sync** - Manual synchronization from Appwrite to Firebase
 4. ✅ **Scalability** - Firebase Storage scales automatically
 5. ✅ **Cost Effective** - Pay only for what you use
 6. ✅ **Observability** - Always know which source is serving data
