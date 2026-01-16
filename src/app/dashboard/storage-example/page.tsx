@@ -29,7 +29,7 @@ export default function StorageExamplePage() {
         }
 
         setUploading(true);
-        let result;
+        let result: any;
 
         // Example IDs - in real app, these would come from your data
         const exampleUserId = 'user_' + Date.now();
@@ -51,11 +51,11 @@ export default function StorageExamplePage() {
                     throw new Error('Invalid upload type');
             }
 
-            if (result.success && result.url) {
+            if (result?.success && result?.url) {
                 setUploadedUrls(prev => [...prev, { type, url: result.url!, path: result.path! }]);
                 alert('Upload successful!');
             } else {
-                alert('Upload failed: ' + result.error);
+                alert('Upload failed: ' + result?.error);
             }
         } catch (error) {
             console.error('Upload error:', error);

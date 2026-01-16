@@ -38,8 +38,8 @@ export default function ClientCertificatesPage() {
     const loadCertificates = async () => {
         setLoading(true);
         const result = await getCertificatesFromFirebase();
-        if (result.success) {
-            setCertificates(result.certificates);
+        if (result.success && result.certificates) {
+            setCertificates(result.certificates as Certificate[]);
         }
         setLoading(false);
     };
