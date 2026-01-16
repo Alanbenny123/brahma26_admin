@@ -177,8 +177,8 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
                 if (typeof data.details !== 'string') {
                     data.details = String(data.details);
                 }
-                if (data.details.length > 1000) {
-                    data.details = data.details.substring(0, 1000);
+                if (data.details.length > 100000) {
+                    data.details = data.details.substring(0, 100000);
                 }
             }
             
@@ -186,15 +186,15 @@ export async function createItem(type: 'users' | 'tickets' | 'events' | 'attenda
                 if (typeof data.event_rules !== 'string') {
                     data.event_rules = String(data.event_rules);
                 }
-                if (data.event_rules.length > 1000) {
-                    data.event_rules = data.event_rules.substring(0, 1000);
+                if (data.event_rules.length > 100000) {
+                    data.event_rules = data.event_rules.substring(0, 100000);
                 }
             }
         }
 
         const documentId = type === 'events' ? generateEventId(data.fest) : ID.unique();
         await databases.createDocument(
-            appwriteConfig.databaseId,
+            appwriteConfig.databaseId, 
             collectionId,
             documentId,
             data
@@ -270,8 +270,8 @@ export async function createManyItems(type: 'users' | 'tickets' | 'events' | 'at
                     if (typeof data.event_rules !== 'string') {
                         data.event_rules = String(data.event_rules);
                     }
-                    if (data.event_rules.length > 1000) {
-                        data.event_rules = data.event_rules.substring(0, 1000);
+                    if (data.event_rules.length > 100000) {
+                        data.event_rules = data.event_rules.substring(0, 100000);
                     }
                 }
                 

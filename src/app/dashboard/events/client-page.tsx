@@ -947,10 +947,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Event Rules</label>
-                        <Input
+                        <textarea
                             value={formData.event_rules || ''}
                             onChange={(e) => setFormData({ ...formData, event_rules: e.target.value })}
                             required
+                            rows={8}
+                            placeholder="Enter each rule on a new line"
+                            className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-md text-white/90 focus:outline-none focus:ring-2 focus:ring-cyan-500 font-mono text-sm"
                         />
                     </div>
                     <div className="space-y-2">
