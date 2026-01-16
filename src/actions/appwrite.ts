@@ -377,6 +377,9 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
     }
 
     try {
+        console.log(`[UPDATE] Attempting to update ${type} with ID: ${id}`);
+        console.log(`[UPDATE] Clean data:`, JSON.stringify(cleanData, null, 2));
+
         // Format date and time for events
         if (type === 'events') {
             if (cleanData.date) {
@@ -403,6 +406,7 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
             if (eventName && eventFest && eventDate) {
                 const duplicateCheck = await checkEventExists(eventName, eventFest, eventDate, id);
                 if (duplicateCheck.exists) {
+                    console.error(`[UPDATE] Duplicate check failed for event: ${eventName}`);
                     return { 
                         success: false, 
                         error: `Event "${eventName}" for fest "${eventFest}" on ${eventDate} already exists. Cannot have duplicate events.`,
@@ -412,18 +416,31 @@ export async function updateItem(type: 'users' | 'tickets' | 'events' | 'attenda
             }
         }
 
-        await databases.updateDocument(
+        const result = await databases.updateDocument(
             appwriteConfig.databaseId,
             collectionId,
             id,
             cleanData
         );
+        
+        console.log(`[UPDATE] Successfully updated ${type} with ID: ${id}`);
         revalidatePath(`/dashboard/${type}`);
         return { success: true };
 
     } catch (error) {
-        console.error(`Error updating ${type}:`, error);
-        return { success: false, error };
+        console.error(`[UPDATE ERROR] Failed to update ${type}:`, error);
+        
+        // Format error message for user
+        let errorMessage = 'Unknown error occurred';
+        if (error instanceof Error) {
+            errorMessage = error.message;
+        } else if (typeof error === 'string') {
+            errorMessage = error;
+        } else if (error && typeof error === 'object') {
+            errorMessage = (error as any).message || JSON.stringify(error);
+        }
+        
+        return { success: false, error: errorMessage };
     }
 }
 

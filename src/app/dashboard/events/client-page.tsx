@@ -203,14 +203,22 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         }
 
         if (selectedItem && selectedItem.$id) {
+            console.log('[CLIENT] Updating event:', selectedItem.$id);
+            console.log('[CLIENT] Data to save:', dataToSave);
+            
             const result = await updateItem('events', selectedItem.$id, dataToSave);
+            
+            console.log('[CLIENT] Update result:', result);
+            
             if (!result.success) {
                 // Show error message to user
-                if (result.error) {
-                    alert(typeof result.error === 'string' ? result.error : 'Failed to update event. Please try again.');
-                }
+                const errorMsg = typeof result.error === 'string' ? result.error : 'Failed to update event. Please try again.';
+                console.error('[CLIENT] Update failed:', errorMsg);
+                alert(errorMsg);
                 return; // Don't close form on error
             }
+            
+            console.log('[CLIENT] Update successful, reloading page...');
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
