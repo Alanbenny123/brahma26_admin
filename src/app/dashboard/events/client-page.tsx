@@ -6,7 +6,7 @@ import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -60,6 +60,18 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<EventType | null>(null);
     const [formData, setFormData] = useState<Partial<EventType>>({});
+
+    // Keyboard shortcut for refresh: Ctrl+Shift+R
+    useEffect(() => {
+        const handleKeyPress = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.shiftKey && e.key === 'R') {
+                e.preventDefault();
+                window.location.reload();
+            }
+        };
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, []);
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -218,11 +230,11 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 return; // Don't close form on error
             }
             
-            console.log('[CLIENT] Update successful, reloading page...');
+            console.log('[CLIENT] Update successful');
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
-            window.location.reload(); // Reload to show updated data
+            // Removed auto-reload - use Ctrl+Shift+R to refresh
         } else {
             const result = await createItem('events', dataToSave);
             if (!result.success) {
@@ -235,7 +247,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
-            window.location.reload(); // Reload to show new event
+            // Removed auto-reload - use Ctrl+Shift+R to refresh
         }
     };
 
@@ -691,6 +703,15 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             </div>
 
             <div className="flex justify-end gap-2">
+                <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    className="border-cyan-600 text-cyan-600 hover:bg-cyan-600 hover:text-white gap-2"
+                    title="Refresh data (or use Ctrl+Shift+R)"
+                >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh
+                </Button>
                 <input
                     type="file"
                     accept=".csv"
