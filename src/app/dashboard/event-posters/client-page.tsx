@@ -286,42 +286,62 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                             </Button>
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {eventsWithoutPosters.map((event) => (
-                                <Card key={event.$id} className="glass-card border-white/10 hover:border-yellow-500/30 transition-colors">
-                                    <CardContent className="p-4">
-                                        <div className="space-y-2">
-                                            <div>
-                                                <p className="text-white/90 font-medium">{event.event_name}</p>
-                                                <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-xs text-white/40">{event.fest}</span>
-                                                    {event.category && (
-                                                        <>
-                                                            <span className="text-white/20">•</span>
-                                                            <span className="text-xs text-white/40">{event.category}</span>
-                                                        </>
+                    <CardContent className="space-y-6">
+                        {/* Simple List View */}
+                        <div className="bg-black/20 rounded-lg p-4 border border-white/10">
+                            <h3 className="text-sm font-semibold text-yellow-400 mb-3">Event Names List:</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {eventsWithoutPosters.map((event, index) => (
+                                    <div key={event.$id} className="flex items-start gap-2 text-sm">
+                                        <span className="text-yellow-500 font-mono">{(index + 1).toString().padStart(2, '0')}.</span>
+                                        <div className="flex-1">
+                                            <span className="text-white/90">{event.event_name}</span>
+                                            <span className="text-white/40 text-xs ml-2">({event.fest})</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Card Grid View */}
+                        <div>
+                            <h3 className="text-sm font-semibold text-white/60 mb-3">Upload Posters:</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {eventsWithoutPosters.map((event) => (
+                                    <Card key={event.$id} className="glass-card border-white/10 hover:border-yellow-500/30 transition-colors">
+                                        <CardContent className="p-4">
+                                            <div className="space-y-2">
+                                                <div>
+                                                    <p className="text-white/90 font-medium">{event.event_name}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className="text-xs text-white/40">{event.fest}</span>
+                                                        {event.category && (
+                                                            <>
+                                                                <span className="text-white/20">•</span>
+                                                                <span className="text-xs text-white/40">{event.category}</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    {event.date && (
+                                                        <p className="text-xs text-white/40 mt-1">{formatDate(event.date)}</p>
                                                     )}
                                                 </div>
-                                                {event.date && (
-                                                    <p className="text-xs text-white/40 mt-1">{formatDate(event.date)}</p>
-                                                )}
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedEventId(event.$id);
+                                                        setIsUploadOpen(true);
+                                                    }}
+                                                    className="w-full bg-yellow-600 hover:bg-yellow-500"
+                                                >
+                                                    <Upload className="w-4 h-4 mr-2" />
+                                                    Upload Poster
+                                                </Button>
                                             </div>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => {
-                                                    setSelectedEventId(event.$id);
-                                                    setIsUploadOpen(true);
-                                                }}
-                                                className="w-full bg-yellow-600 hover:bg-yellow-500"
-                                            >
-                                                <Upload className="w-4 h-4 mr-2" />
-                                                Upload Poster
-                                            </Button>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
