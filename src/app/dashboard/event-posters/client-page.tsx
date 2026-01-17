@@ -37,7 +37,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const [eventSearchTerm, setEventSearchTerm] = useState('');
     const [mainSearchTerm, setMainSearchTerm] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
-    const [showNoPostersList, setShowNoPostersList] = useState(false);
+    const [showNoPostersList, setShowNoPostersList] = useState(true);
 
     // Filter events based on main page search term
     const searchFilteredEvents = events.filter(event => 
@@ -185,8 +185,8 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                         title="Events without Posters"
                         value={eventsWithoutPosters.length}
                         icon={showNoPostersList ? ChevronUp : ChevronDown}
-                        color="text-gray-500"
-                        subValue={showNoPostersList ? "Click to hide" : "Click to view list"}
+                        color="text-yellow-500"
+                        subValue={showNoPostersList ? "Click to hide list" : "Click to show list"}
                     />
                 </div>
                 <div onClick={() => setIsUploadOpen(true)} className="cursor-pointer">
