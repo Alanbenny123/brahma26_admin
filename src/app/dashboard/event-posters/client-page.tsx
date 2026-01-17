@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import { Upload, Trash2, Eye, ImageIcon, Plus, Search } from "lucide-react";
+import { Upload, Trash2, Eye, ImageIcon, Plus, Search, Edit } from "lucide-react";
 import { uploadEventImageClient } from "@/lib/client-storage";
 import { updateItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -36,6 +36,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const [selectedEventId, setSelectedEventId] = useState('');
     const [eventSearchTerm, setEventSearchTerm] = useState('');
     const [mainSearchTerm, setMainSearchTerm] = useState('');
+    const [isEditMode, setIsEditMode] = useState(false);
 
     // Filter events based on main page search term
     const searchFilteredEvents = events.filter(event => 
@@ -130,6 +131,12 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const handleView = (event: Event) => {
         setSelectedEvent(event);
         setIsViewOpen(true);
+    };
+
+    const handleEdit = (event: Event) => {
+        setSelectedEventId(event.$id);
+        setIsEditMode(true);
+        setIsUploadOpen(true);
     };
 
     return (
@@ -236,6 +243,15 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                                         <Button
                                             size="sm"
                                             variant="outline"
+                                            onClick={() => handleEdit(event)}
+                                            className="flex-1 text-cyan-400 hover:text-cyan-300"
+                                        >
+                                            <Edit className="w-4 h-4 mr-1" />
+                                            Edit
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
                                             onClick={() => handleDelete(event)}
                                             className="text-red-400 hover:text-red-300"
                                         >
@@ -295,43 +311,65 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
             )}
 
             {/* Upload Modal */}
-            <Modal isOpen={isUploadOpen} onClose={() => setIsUploadOpen(false)} title="Upload Event Poster">
+            <Modal 
+                isOpen={isUploadOpen} 
+                onClose={() => {
+                    setIsUploadOpen(false);
+                    setIsEditMode(false);
+                    setSelectedEventId('');
+                    setSelectedFile(null);
+                    setEventSearchTerm('');
+                }} 
+                title={isEditMode ? "Update Event Poster" : "Upload Event Poster"}
+            >
                 <form onSubmit={handleUpload} className="space-y-4">
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Search Events</label>
-                        <Input
-                            type="text"
-                            placeholder="Search by event name, fest, or category..."
-                            value={eventSearchTerm}
-                            onChange={(e) => setEventSearchTerm(e.target.value)}
-                            disabled={uploading}
-                            className="w-full"
-                        />
-                        <p className="text-xs text-gray-500">
-                            {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
-                        </p>
-                    </div>
+                    {!isEditMode && (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Search Events</label>
+                                <Input
+                                    type="text"
+                                    placeholder="Search by event name, fest, or category..."
+                                    value={eventSearchTerm}
+                                    onChange={(e) => setEventSearchTerm(e.target.value)}
+                                    disabled={uploading}
+                                    className="w-full"
+                                />
+                                <p className="text-xs text-gray-500">
+                                    {filteredEvents.length} event{filteredEvents.length !== 1 ? 's' : ''} found
+                                </p>
+                            </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Select Event *</label>
-                        <select
-                            value={selectedEventId}
-                            onChange={(e) => setSelectedEventId(e.target.value)}
-                            required
-                            disabled={uploading}
-                            className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-md text-white/90 focus:outline-none focus:ring-2 focus:ring-cyan-500 max-h-48 overflow-y-auto"
-                        >
-                            <option value="">Choose an event...</option>
-                            {filteredEvents.map((event) => (
-                                <option key={event.$id} value={event.$id}>
-                                    {event.event_name} ({event.fest}){event.poster ? ' ⚠️ Has poster' : ''}
-                                </option>
-                            ))}
-                        </select>
-                        {filteredEvents.length === 0 && eventSearchTerm && (
-                            <p className="text-xs text-yellow-500">No events match your search</p>
-                        )}
-                    </div>
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Select Event *</label>
+                                <select
+                                    value={selectedEventId}
+                                    onChange={(e) => setSelectedEventId(e.target.value)}
+                                    required
+                                    disabled={uploading}
+                                    className="w-full px-3 py-2 bg-black/30 border border-white/10 rounded-md text-white/90 focus:outline-none focus:ring-2 focus:ring-cyan-500 max-h-48 overflow-y-auto"
+                                >
+                                    <option value="">Choose an event...</option>
+                                    {filteredEvents.map((event) => (
+                                        <option key={event.$id} value={event.$id}>
+                                            {event.event_name} ({event.fest}){event.poster ? ' ⚠️ Has poster' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                {filteredEvents.length === 0 && eventSearchTerm && (
+                                    <p className="text-xs text-yellow-500">No events match your search</p>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {isEditMode && (
+                        <div className="space-y-2 p-4 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+                            <h3 className="text-cyan-400 font-semibold">Updating Poster For:</h3>
+                            <p className="text-white/90">{events.find(e => e.$id === selectedEventId)?.event_name}</p>
+                            <p className="text-sm text-white/60">{events.find(e => e.$id === selectedEventId)?.fest}</p>
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Poster Image *</label>
@@ -356,7 +394,13 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                         <Button
                             type="button"
                             variant="outline"
-                            onClick={() => setIsUploadOpen(false)}
+                            onClick={() => {
+                                setIsUploadOpen(false);
+                                setIsEditMode(false);
+                                setSelectedEventId('');
+                                setSelectedFile(null);
+                                setEventSearchTerm('');
+                            }}
                             disabled={uploading}
                         >
                             Cancel
@@ -364,9 +408,9 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                         <Button
                             type="submit"
                             disabled={uploading}
-                            className="bg-green-500 hover:bg-green-600"
+                            className={isEditMode ? "bg-cyan-500 hover:bg-cyan-600" : "bg-green-500 hover:bg-green-600"}
                         >
-                            {uploading ? 'Uploading...' : 'Upload Poster'}
+                            {uploading ? 'Uploading...' : (isEditMode ? 'Update Poster' : 'Upload Poster')}
                         </Button>
                     </div>
                 </form>
