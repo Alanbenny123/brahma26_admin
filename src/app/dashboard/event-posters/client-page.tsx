@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import { Upload, Trash2, Eye, ImageIcon, Plus, Search, Edit } from "lucide-react";
+import { Upload, Trash2, Eye, ImageIcon, Plus, Search, Edit, ChevronDown, ChevronUp } from "lucide-react";
 import { uploadEventImageClient } from "@/lib/client-storage";
 import { updateItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -37,6 +37,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const [eventSearchTerm, setEventSearchTerm] = useState('');
     const [mainSearchTerm, setMainSearchTerm] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
+    const [showNoPostersList, setShowNoPostersList] = useState(false);
 
     // Filter events based on main page search term
     const searchFilteredEvents = events.filter(event => 
@@ -179,12 +180,15 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                     icon={ImageIcon}
                     color="text-blue-500"
                 />
-                <StatsCard
-                    title="Events without Posters"
-                    value={eventsWithoutPosters.length}
-                    icon={ImageIcon}
-                    color="text-gray-500"
-                />
+                <div onClick={() => setShowNoPostersList(!showNoPostersList)} className="cursor-pointer">
+                    <StatsCard
+                        title="Events without Posters"
+                        value={eventsWithoutPosters.length}
+                        icon={showNoPostersList ? ChevronUp : ChevronDown}
+                        color="text-gray-500"
+                        subValue={showNoPostersList ? "Click to hide" : "Click to view list"}
+                    />
+                </div>
                 <div onClick={() => setIsUploadOpen(true)} className="cursor-pointer">
                     <StatsCard
                         title="Upload Poster"
@@ -265,34 +269,62 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
                 </div>
             )}
 
-            {/* Events without Posters */}
-            {eventsWithoutPosters.length > 0 && (
-                <div>
-                    <h2 className="text-xl font-semibold text-white/90 mb-4">Events without Posters</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {eventsWithoutPosters.map((event) => (
-                            <Card key={event.$id} className="glass-card border-white/10">
-                                <CardContent className="p-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <p className="text-white/90 font-medium">{event.event_name}</p>
-                                            <p className="text-xs text-white/40">{event.fest}</p>
+            {/* Events without Posters - Expandable List */}
+            {eventsWithoutPosters.length > 0 && showNoPostersList && (
+                <Card className="glass-card border-yellow-500/30 bg-yellow-500/5">
+                    <CardHeader>
+                        <CardTitle className="text-white/90 flex items-center justify-between">
+                            <span>Events without Posters ({eventsWithoutPosters.length})</span>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShowNoPostersList(false)}
+                                className="text-white/60"
+                            >
+                                <ChevronUp className="w-4 h-4 mr-1" />
+                                Hide
+                            </Button>
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {eventsWithoutPosters.map((event) => (
+                                <Card key={event.$id} className="glass-card border-white/10 hover:border-yellow-500/30 transition-colors">
+                                    <CardContent className="p-4">
+                                        <div className="space-y-2">
+                                            <div>
+                                                <p className="text-white/90 font-medium">{event.event_name}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <span className="text-xs text-white/40">{event.fest}</span>
+                                                    {event.category && (
+                                                        <>
+                                                            <span className="text-white/20">•</span>
+                                                            <span className="text-xs text-white/40">{event.category}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                {event.date && (
+                                                    <p className="text-xs text-white/40 mt-1">{formatDate(event.date)}</p>
+                                                )}
+                                            </div>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => {
+                                                    setSelectedEventId(event.$id);
+                                                    setIsUploadOpen(true);
+                                                }}
+                                                className="w-full bg-yellow-600 hover:bg-yellow-500"
+                                            >
+                                                <Upload className="w-4 h-4 mr-2" />
+                                                Upload Poster
+                                            </Button>
                                         </div>
-                                        <Button
-                                            size="sm"
-                                            onClick={() => {
-                                                setSelectedEventId(event.$id);
-                                                setIsUploadOpen(true);
-                                            }}
-                                        >
-                                            <Upload className="w-4 h-4" />
-                                        </Button>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))}
-                    </div>
-                </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
             )}
 
             {searchFilteredEvents.length === 0 && mainSearchTerm && (
