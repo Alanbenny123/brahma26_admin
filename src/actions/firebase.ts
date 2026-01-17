@@ -49,6 +49,24 @@ import {
     child,
 } from 'firebase/database';
 
+// ============= UTILITY FUNCTIONS =============
+
+/**
+ * Format event rules: Add newline after each period (full stop)
+ * Input: "Rule 1. Rule 2. Rule 3."
+ * Output: "Rule 1.\nRule 2.\nRule 3."
+ */
+function formatEventRules(rulesText: string | undefined): string {
+    if (!rulesText || typeof rulesText !== 'string') return '';
+    
+    // Replace ". " with ".\n" (period + space becomes period + newline)
+    // Also handle cases where period is at end of line without space
+    return rulesText
+        .replace(/\.\s+/g, '.\n')  // Period followed by spaces
+        .replace(/\.(?=[A-Z0-9])/g, '.\n')  // Period followed by capital letter/number
+        .trim();
+}
+
 // ============= FIRESTORE OPERATIONS =============
 
 // Helper function to check if document exists by appwriteId
@@ -287,6 +305,11 @@ export async function upsertFirestoreEvent(eventData: any) {
         }
         if (eventData.time) {
             eventData.time = formatTime(eventData.time);
+        }
+
+        // Format event rules: Add newline after each period
+        if (eventData.event_rules) {
+            eventData.event_rules = formatEventRules(eventData.event_rules);
         }
 
         // Use Appwrite ID as the Firebase document ID
