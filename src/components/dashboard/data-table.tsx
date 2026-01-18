@@ -18,14 +18,17 @@ import { formatTime, formatDate } from "@/lib/date-utils";
 interface DataTableProps<T> {
     data: T[];
     columns: { key: keyof T; label: string; sortable?: boolean; multiline?: boolean }[];
-    onEdit: (item: T) => void;
-    onDelete: (item: T) => void;
+    onEdit?: (item: T) => void;
+    onDelete?: (item: T) => void;
     onDeleteMany?: (items: T[]) => void;
-    searchKeys: (keyof T)[];
+    searchKeys?: (keyof T)[];
     filterKeys?: (keyof T)[];
     placeholder?: string;
     getRowClassName?: (item: T) => string;
     headerColor?: string; // e.g., "text-cyan-400"
+    editLabel?: string; // Custom label for edit button
+    showDelete?: boolean; // Whether to show delete button
+    showAdd?: boolean; // Whether to show add button (not used in current implementation)
 }
 
 export function DataTable<T extends { $id: string }>({
@@ -34,11 +37,13 @@ export function DataTable<T extends { $id: string }>({
     onEdit,
     onDelete,
     onDeleteMany,
-    searchKeys,
+    searchKeys = [],
     filterKeys,
     placeholder,
     getRowClassName,
     headerColor = "text-cyan-400", // Default color
+    editLabel = "Edit",
+    showDelete = true,
 }: DataTableProps<T>) {
     const [selectedItems, setSelectedItems] = React.useState<Set<string>>(new Set());
     const [isSelectionMode, setIsSelectionMode] = React.useState(false);
@@ -154,7 +159,7 @@ export function DataTable<T extends { $id: string }>({
                 <div className="relative w-72">
                     <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                        placeholder={placeholder || `Search by ${searchKeys.map(k => String(k)).join(', ')}...`}
+                        placeholder={placeholder || (searchKeys.length > 0 ? `Search by ${searchKeys.map(k => String(k)).join(', ')}...` : 'Search...')}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-8 bg-white/5 border-white/10 text-white"
@@ -333,12 +338,16 @@ export function DataTable<T extends { $id: string }>({
                                         );
                                     })}
                                     <TableCell className="text-right space-x-2 sticky right-0 bg-black z-10 shadow-[-10px_0_20px_-5px_rgba(0,0,0,0.5)]">
-                                        <Button variant="ghost" size="icon" onClick={() => onEdit(row)} className="hover:text-blue-400">
-                                            <Edit className="h-4 w-4" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" onClick={() => onDelete(row)} className="hover:text-red-400">
-                                            <Trash2 className="h-4 w-4" />
-                                        </Button>
+                                        {onEdit && (
+                                            <Button variant="ghost" size="icon" onClick={() => onEdit(row)} className="hover:text-blue-400" title={editLabel}>
+                                                <Edit className="h-4 w-4" />
+                                            </Button>
+                                        )}
+                                        {showDelete && onDelete && (
+                                            <Button variant="ghost" size="icon" onClick={() => onDelete(row)} className="hover:text-red-400">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </TableCell>
                                 </TableRow>
                             ))

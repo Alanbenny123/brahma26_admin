@@ -13,6 +13,7 @@ const mainNavItems = [
     { name: "Users", href: "/dashboard/users", icon: Users },
     { name: "Tickets", href: "/dashboard/tickets", icon: Ticket },
     { name: "Events", href: "/dashboard/events", icon: Calendar },
+    { name: "User Events", href: "/dashboard/user-events", icon: UserCircle },
     { name: "Attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
     { name: "Transactions", href: "/dashboard/transactions", icon: Receipt },
 ];

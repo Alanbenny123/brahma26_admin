@@ -567,3 +567,52 @@ export async function updateIEI(documentId: string, data: { mebership_id: string
 export async function deleteIEI(documentId: string) {
     return deleteDocument(appwriteConfig.collections.iei, documentId);
 }
+
+// --- USER EVENTS OPERATIONS ---
+
+export async function getUsersWithEvents(fetchAll: boolean = false) {
+    const { documents: users, total } = await getUsers(fetchAll);
+    const { documents: tickets } = await getTickets(true); // Need all tickets
+    const { documents: events } = await getEvents(true); // Need all events
+
+    // Create maps for quick lookups
+    const eventsMap = new Map(events.map((event: any) => [event.$id, event]));
+    
+    // Group tickets by user (stud_id)
+    const ticketsByUser = new Map<string, any[]>();
+    tickets.forEach((ticket: any) => {
+        if (ticket.stud_id && Array.isArray(ticket.stud_id)) {
+            ticket.stud_id.forEach((userId: string) => {
+                if (!ticketsByUser.has(userId)) {
+                    ticketsByUser.set(userId, []);
+                }
+                const event = eventsMap.get(ticket.event_id);
+                if (event) {
+                    ticketsByUser.get(userId)!.push({
+                        ticketId: ticket.$id,
+                        eventId: event.$id,
+                        eventName: event.event_name,
+                        fest: event.fest,
+                        date: event.date,
+                        time: event.time,
+                        teamName: ticket.team_name,
+                        active: ticket.active,
+                    });
+                }
+            });
+        }
+    });
+
+    // Enrich users with their registered events
+    const usersWithEvents = users.map((user: any) => ({
+        $id: user.$id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        college: user.college,
+        registeredEvents: ticketsByUser.get(user.$id) || [],
+        eventCount: (ticketsByUser.get(user.$id) || []).length,
+    }));
+
+    return { users: usersWithEvents, total };
+}
