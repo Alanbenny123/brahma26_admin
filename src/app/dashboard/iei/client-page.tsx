@@ -9,6 +9,7 @@ import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-
 import { deleteIEI, createIEI, updateIEI } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface IEIRecord {
     $id: string;
@@ -23,6 +24,8 @@ interface ClientIEIPageProps {
 }
 
 export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps) {
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);

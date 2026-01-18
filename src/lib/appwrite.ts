@@ -27,5 +27,6 @@ export const appwriteConfig = {
         certificates: 'certificates',
         iei: 'iei', // IEI collection
         iee: 'iee', // IEE collection
+        admin_logs: 'admin_logs', // Admin activity logs
     }
 }

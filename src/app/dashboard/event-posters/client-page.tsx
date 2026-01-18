@@ -12,6 +12,7 @@ import { updateItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
 import Image from "next/image";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface Event {
     $id: string;
@@ -28,6 +29,8 @@ interface ClientEventPostersPageProps {
 }
 
 export default function ClientEventPostersPage({ events, total }: ClientEventPostersPageProps) {
+    useActivityLogger();
+    
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [isViewOpen, setIsViewOpen] = useState(false);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);

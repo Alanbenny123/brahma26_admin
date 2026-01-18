@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Trash2, Plus, Shield, UserCog } from "lucide-react";
 import { deleteAdmin, createAdmin, updateAdmin } from "@/actions/auth";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface AdminType {
     $id: string;
@@ -25,6 +26,9 @@ interface ClientAdminsPageProps {
 }
 
 export default function ClientAdminsPage({ initialData, total }: ClientAdminsPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);

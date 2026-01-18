@@ -11,6 +11,7 @@ import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { Users as UsersIcon, BarChart3, Plus } from "lucide-react";
 import bcrypt from "bcryptjs";
+import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
 
 // Define the shape of a User based on Appwrite schema
 interface User {
@@ -18,6 +19,8 @@ interface User {
     name: string;
     email: string;
     pass: string;
+    phone?: number;
+    college?: string;
     certificates?: string[];
     tickets?: string[];
 }
@@ -28,6 +31,9 @@ interface ClientUsersPageProps {
 }
 
 export default function ClientUsersPage({ initialData, total }: ClientUsersPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const router = useRouter();
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -45,6 +51,8 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
     const columns: { key: keyof User; label: string; sortable?: boolean; multiline?: boolean }[] = [
         { key: "name", label: "Name", sortable: true },
         { key: "email", label: "Email", sortable: true },
+        { key: "phone", label: "Phone" },
+        { key: "college", label: "College", sortable: true },
         { key: "pass", label: "Pass" },
         { key: "tickets", label: "Tickets", multiline: true },
         { key: "certificates", label: "Certificates", multiline: true },
@@ -65,6 +73,13 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
     const confirmDelete = async () => {
         if (selectedItem) {
             await deleteItem('users', selectedItem.$id);
+            await logAdminAction({
+                action: `Deleted user: ${selectedItem.name}`,
+                actionType: 'delete',
+                resource: 'users',
+                resourceId: selectedItem.$id,
+                details: `Deleted user ${selectedItem.name} (${selectedItem.email})`
+            });
             setIsDeleteOpen(false);
             setSelectedItem(null);
         }
@@ -75,6 +90,16 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
         let result;
 
         const dataToSave = { ...formData };
+
+        // Convert phone to integer if provided
+        if (dataToSave.phone) {
+            const phoneNumber = parseInt(dataToSave.phone.toString().replace(/\D/g, ''), 10);
+            if (isNaN(phoneNumber)) {
+                alert("Invalid phone number format");
+                return;
+            }
+            dataToSave.phone = phoneNumber;
+        }
 
         // Hash password if provided
         if (dataToSave.pass) {
@@ -87,8 +112,25 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
 
         if (selectedItem && selectedItem.$id) {
             result = await updateItem('users', selectedItem.$id, dataToSave);
+            if (result.success) {
+                await logAdminAction({
+                    action: `Updated user: ${dataToSave.name}`,
+                    actionType: 'update',
+                    resource: 'users',
+                    resourceId: selectedItem.$id,
+                    details: `Updated user ${dataToSave.name} (${dataToSave.email})`
+                });
+            }
         } else {
             result = await createItem('users', dataToSave);
+            if (result.success) {
+                await logAdminAction({
+                    action: `Created user: ${dataToSave.name}`,
+                    actionType: 'create',
+                    resource: 'users',
+                    details: `Created new user ${dataToSave.name} (${dataToSave.email})`
+                });
+            }
         }
 
         if (result.success) {
@@ -243,7 +285,24 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                             placeholder={selectedItem?.$id ? "Unchanged" : "Required"}
                         />
                     </div>
-                    {/* Add more fields as per schema */}
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">Phone</label>
+                        <Input
+                            type="tel"
+                            value={formData.phone?.toString() || ''}
+                            onChange={(e) => setFormData({ ...formData, phone: e.target.value as any })}
+                            required
+                            placeholder="Phone number (digits only)"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">College</label>
+                        <Input
+                            value={formData.college || ''}
+                            onChange={(e) => setFormData({ ...formData, college: e.target.value })}
+                            placeholder="College name (optional)"
+                        />
+                    </div>
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button type="button" variant="ghost" onClick={() => setIsEditOpen(false)}>Cancel</Button>
                         <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>

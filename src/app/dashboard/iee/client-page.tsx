@@ -9,6 +9,7 @@ import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-
 import { deleteIEEE, createIEEE, updateIEEE } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface IEEERecord {
     $id: string;
@@ -23,6 +24,8 @@ interface ClientIEEEPageProps {
 }
 
 export default function ClientIEEEPage({ initialData, total }: ClientIEEEPageProps) {
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);

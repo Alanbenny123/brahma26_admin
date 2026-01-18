@@ -14,6 +14,7 @@ import { generateEventPass } from "@/lib/utils";
 import { formatTime, formatDate } from "@/lib/date-utils";
 import React, { useRef } from "react";
 import bcrypt from "bcryptjs";
+import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
 
 interface EventType {
     $id: string;
@@ -56,6 +57,9 @@ const FEST_OPTIONS = [
 ];
 
 export default function ClientEventsPage({ initialData, total, tickets }: ClientEventsPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<EventType | null>(null);
@@ -155,6 +159,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const confirmDelete = async () => {
         if (selectedItem) {
             await deleteItem('events', selectedItem.$id);
+            await logAdminAction({
+                action: `Deleted event: ${selectedItem.event_name}`,
+                actionType: 'delete',
+                resource: 'events',
+                resourceId: selectedItem.$id,
+                details: `Deleted event ${selectedItem.event_name} (${selectedItem.fest})`
+            });
             setIsDeleteOpen(false);
             setSelectedItem(null);
         }
@@ -231,6 +242,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             }
             
             console.log('[CLIENT] Update successful');
+            await logAdminAction({
+                action: `Updated event: ${dataToSave.event_name}`,
+                actionType: 'update',
+                resource: 'events',
+                resourceId: selectedItem.$id,
+                details: `Updated event ${dataToSave.event_name} (${dataToSave.fest})`
+            });
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});
@@ -244,6 +262,12 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 }
                 return; // Don't close form on error
             }
+            await logAdminAction({
+                action: `Created event: ${dataToSave.event_name}`,
+                actionType: 'create',
+                resource: 'events',
+                details: `Created new event ${dataToSave.event_name} (${dataToSave.fest})`
+            });
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({});

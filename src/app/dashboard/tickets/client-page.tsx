@@ -10,6 +10,7 @@ import { Trash2, Edit, Plus, Ticket, BarChart3 } from "lucide-react";
 import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Checkbox } from "@/components/ui/checkbox"; // Will create simplified checkbox here or import
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface TicketType {
     $id: string;
@@ -30,6 +31,9 @@ interface ClientTicketsPageProps {
 }
 
 export default function ClientTicketsPage({ initialData, events, total }: ClientTicketsPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<TicketType | null>(null);

@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Trash2, Edit, Plus, Receipt, BarChart3 } from "lucide-react";
 import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface TransactionType {
     $id: string;
@@ -23,6 +24,9 @@ interface ClientTransactionsPageProps {
 }
 
 export default function ClientTransactionsPage({ initialData, total }: ClientTransactionsPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<TransactionType | null>(null);

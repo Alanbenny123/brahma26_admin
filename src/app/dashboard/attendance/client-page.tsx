@@ -9,6 +9,7 @@ import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { ClipboardCheck, BarChart3, Plus } from "lucide-react";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface AttendanceType {
     $id: string;
@@ -18,6 +19,8 @@ interface AttendanceType {
 }
 
 export default function ClientAttendancePage({ initialData, total }: { initialData: any[], total: number }) {
+    useActivityLogger();
+    
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<AttendanceType | null>(null);

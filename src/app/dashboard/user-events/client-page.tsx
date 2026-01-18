@@ -5,6 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { useState } from "react";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Users as UsersIcon, CalendarCheck } from "lucide-react";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface EventRegistration {
     ticketId: string;
@@ -37,6 +38,9 @@ interface ClientUserEventsPageProps {
 }
 
 export default function ClientUserEventsPage({ initialData, total }: ClientUserEventsPageProps) {
+    // Log page view
+    useActivityLogger();
+    
     const [selectedUser, setSelectedUser] = useState<UserWithEvents | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'users' | 'events'>('users');

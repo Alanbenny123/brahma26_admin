@@ -11,6 +11,7 @@ import { getCertificatesFromFirebase, saveCertificateToFirebase, deleteCertifica
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
 import Image from "next/image";
+import { useActivityLogger } from "@/lib/use-activity-logger";
 
 interface Certificate {
     id: string;
@@ -21,6 +22,9 @@ interface Certificate {
 }
 
 export default function ClientCertificatesPage() {
+    // Log page view
+    useActivityLogger();
+    
     const [certificates, setCertificates] = useState<Certificate[]>([]);
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [isViewOpen, setIsViewOpen] = useState(false);
