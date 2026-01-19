@@ -510,7 +510,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                     value={`₹${totalRevenue.toFixed(2)}`}
                     icon={IndianRupee}
                     color="text-green-500"
-                    subValue={`${successfulCount} of ${userTransactionMap.size} payments found`}
+                    subValue={`${successfulCount} of ${transactions.length} payments found`}
                 />
                 <div onClick={handleOverview} className="cursor-pointer">
                     <StatsCard

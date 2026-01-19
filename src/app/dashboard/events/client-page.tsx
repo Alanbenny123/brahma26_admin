@@ -323,6 +323,21 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     const handleOverview = () => {
         const totalEvents = initialData.length;
 
+        // Calculate revenue per event
+        const eventRevenueData = initialData.map(event => {
+            const eventTickets = tickets.filter(t => t.event_id === event.$id).length;
+            const amountStr = String(event.amount || "0");
+            const numericAmount = parseFloat(amountStr.replace(/[^0-9.]/g, '')) || 0;
+            const eventRevenue = eventTickets * numericAmount;
+            
+            return {
+                name: event.event_name,
+                tickets: eventTickets,
+                price: numericAmount,
+                revenue: eventRevenue
+            };
+        }).filter(e => e.revenue > 0).sort((a, b) => b.revenue - a.revenue);
+
         // Accurate Revenue Calculation: Sum of (Tickets Sold per Event * Event Amount)
         const totalRevenue = initialData.reduce((sum, event) => {
             // 1. Get total tickets for this specific event
@@ -348,12 +363,20 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
         });
         const chartData = Array.from(catMap.entries()).map(([label, value]) => ({ label, value }));
 
+        // Build per-event revenue breakdown
+        const revenueBreakdown = eventRevenueData.length > 0 
+            ? `\nPer-Event Revenue Breakdown (Top performers):\n${eventRevenueData.slice(0, 10).map((e, i) => 
+                `${i + 1}. ${e.name}: ₹${e.revenue.toLocaleString()} (${e.tickets} ticket${e.tickets !== 1 ? 's' : ''} × ₹${e.price})`
+              ).join('\n')}`
+            : '\n(No revenue data available)';
+
         const report = `
             Overview Report for ${totalEvents} events.
             
             Financials (Based on actual Ticket Sales):
             - Total Revenue Generated: ₹${totalRevenue.toLocaleString()}
             - Average Revenue per Event: ₹${avgRevenue}
+            ${revenueBreakdown}
             
             Key Insights:
             - The most popular category is "${chartData.sort((a, b) => b.value - a.value)[0]?.label || 'N/A'}" with ${chartData.sort((a, b) => b.value - a.value)[0]?.value || 0} events.
