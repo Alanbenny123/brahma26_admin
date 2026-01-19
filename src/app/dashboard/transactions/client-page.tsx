@@ -6,16 +6,26 @@ import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { Trash2, Edit, Plus, Receipt, BarChart3 } from "lucide-react";
+import { Trash2, Edit, Plus, Receipt, BarChart3, IndianRupee, Loader2, RefreshCw } from "lucide-react";
 import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { useActivityLogger } from "@/lib/use-activity-logger";
+import { fetchPaymentDetails } from "@/actions/razorpay";
 
 interface TransactionType {
     $id: string;
     transition_id: string;
     stud_id?: string;
     ticket_id?: string;
+    amount?: number;
+}
+
+interface AmountData {
+    amount?: number;
+    status?: string;
+    method?: string;
+    loading?: boolean;
+    error?: string;
 }
 
 interface ClientTransactionsPageProps {
@@ -26,11 +36,15 @@ interface ClientTransactionsPageProps {
 export default function ClientTransactionsPage({ initialData, total }: ClientTransactionsPageProps) {
     // Log page view
     useActivityLogger();
-    
+
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<TransactionType | null>(null);
     const [formData, setFormData] = useState<Partial<TransactionType>>({});
+
+    // Amount fetching state - stores Razorpay data keyed by transaction $id
+    const [amounts, setAmounts] = useState<Map<string, AmountData>>(new Map());
+    const [isFetchingAll, setIsFetchingAll] = useState(false);
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -40,12 +54,134 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
         report: string;
     }>({ metrics: [], chartData: [], report: '' });
 
+    // Fetch amount for a single transaction from Razorpay
+    const fetchAmount = async (transactionId: string, paymentId: string) => {
+        setAmounts(prev => {
+            const newMap = new Map(prev);
+            newMap.set(transactionId, { loading: true });
+            return newMap;
+        });
+
+        const result = await fetchPaymentDetails(paymentId);
+
+        if (result.success && result.payment) {
+            setAmounts(prev => {
+                const newMap = new Map(prev);
+                newMap.set(transactionId, {
+                    amount: result.payment!.amount,
+                    status: result.payment!.status,
+                    method: result.payment!.method,
+                    loading: false
+                });
+                return newMap;
+            });
+        } else {
+            setAmounts(prev => {
+                const newMap = new Map(prev);
+                newMap.set(transactionId, {
+                    error: result.error || 'Failed to fetch',
+                    loading: false
+                });
+                return newMap;
+            });
+        }
+    };
+
+    // Fetch amounts for all transactions from Razorpay
+    const fetchAllAmounts = async () => {
+        setIsFetchingAll(true);
+
+        for (const transaction of initialData) {
+            if (transaction.transition_id && !amounts.has(transaction.$id)) {
+                await fetchAmount(transaction.$id, transaction.transition_id);
+                // Small delay to avoid Razorpay rate limiting
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        setIsFetchingAll(false);
+    };
+
+    // Calculate total revenue from fetched Razorpay amounts
+    const totalRevenue = Array.from(amounts.values()).reduce((sum, item) => sum + (item.amount || 0), 0);
+    const fetchedCount = amounts.size; // Count all attempts (success + errors)
+    const successfulCount = Array.from(amounts.values()).filter(a => a.amount !== undefined).length;
+
+    // Custom render function for the amount column
+    const renderAmount = (item: TransactionType) => {
+        // Check if transition_id exists first
+        if (!item.transition_id) {
+            return <span className="text-orange-400 text-xs">No ID</span>;
+        }
+
+        const amountData = amounts.get(item.$id);
+
+        if (amountData?.loading) {
+            return <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />;
+        }
+
+        if (amountData?.amount !== undefined) {
+            return (
+                <div className="flex flex-col">
+                    <span className="text-green-400 font-medium">
+                        ₹{amountData.amount.toFixed(2)}
+                    </span>
+                    {amountData.status && (
+                        <span className={`text-xs ${amountData.status === 'captured' ? 'text-green-500' : 'text-yellow-500'}`}>
+                            {amountData.status}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+
+        if (amountData?.error) {
+            return (
+                <div className="flex items-center gap-1">
+                    <span className="text-red-400 text-xs" title={amountData.error}>{amountData.error}</span>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            fetchAmount(item.$id, item.transition_id);
+                        }}
+                    >
+                        <RefreshCw className="h-3 w-3 text-gray-400" />
+                    </Button>
+                </div>
+            );
+        }
+
+        return (
+            <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    fetchAmount(item.$id, item.transition_id);
+                }}
+            >
+                <IndianRupee className="h-3 w-3 mr-1" />
+                Fetch
+            </Button>
+        );
+    };
+
     const columns: { key: keyof TransactionType; label: string; sortable?: boolean }[] = [
         { key: "$id", label: "ID", sortable: true },
         { key: "transition_id", label: "Transaction ID", sortable: true },
         { key: "stud_id", label: "Student ID", sortable: true },
         { key: "ticket_id", label: "Ticket ID", sortable: true },
     ];
+
+    // Transform data to include rendered amounts
+    const dataWithAmounts = initialData.map(item => ({
+        ...item,
+        _amountRender: renderAmount(item)
+    }));
 
     const handleDeleteClick = (item: any) => {
         setSelectedItem(item);
@@ -103,6 +239,9 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
         const withStudId = initialData.filter(t => t.stud_id).length;
         const withTicketId = initialData.filter(t => t.ticket_id).length;
         const complete = initialData.filter(t => t.stud_id && t.ticket_id).length;
+        
+        const errorCount = Array.from(amounts.values()).filter(a => a.error).length;
+        const noTransitionId = initialData.filter(t => !t.transition_id).length;
 
         const chartData = [
             { label: 'Complete', value: complete, color: '#22c55e' }, // green-500
@@ -117,11 +256,18 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
             - With Student ID: ${withStudId}
             - With Ticket ID: ${withTicketId}
             - Partial Transactions: ${totalTransactions - complete}
+            - Fetched from Razorpay: ${fetchedCount}
+            - Successful Payments Found: ${successfulCount}
+            - Invalid/Missing IDs: ${errorCount}
+            - No Transition ID: ${noTransitionId}
+            - Total Revenue (fetched): ₹${totalRevenue.toFixed(2)}
             
             Key Insights:
             - ${((complete / totalTransactions || 0) * 100).toFixed(1)}% of transactions are complete (have both stud_id and ticket_id).
             - ${((withStudId / totalTransactions || 0) * 100).toFixed(1)}% have student ID information.
             - ${((withTicketId / totalTransactions || 0) * 100).toFixed(1)}% have ticket ID information.
+            - ${((successfulCount / totalTransactions || 0) * 100).toFixed(1)}% have valid Razorpay payment IDs.
+            - ${((errorCount / totalTransactions || 0) * 100).toFixed(1)}% have invalid or non-existent payment IDs.
         `;
 
         setOverviewData({
@@ -130,6 +276,9 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                 { label: 'Complete', value: complete },
                 { label: 'With Student ID', value: withStudId },
                 { label: 'With Ticket ID', value: withTicketId },
+                { label: 'Valid Payment IDs', value: successfulCount },
+                { label: 'Invalid IDs', value: errorCount },
+                { label: 'Total Revenue', value: `₹${totalRevenue.toFixed(2)}` },
             ],
             chartData,
             report
@@ -152,6 +301,13 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                     icon={Receipt}
                     color="text-purple-500"
                 />
+                <StatsCard
+                    title="Total Revenue"
+                    value={`₹${totalRevenue.toFixed(2)}`}
+                    icon={IndianRupee}
+                    color="text-green-500"
+                    subValue={`${successfulCount} of ${total} payments found`}
+                />
                 <div onClick={handleOverview} className="cursor-pointer">
                     <StatsCard
                         title="Overview"
@@ -161,18 +317,68 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                         subValue="Graphic analysis"
                     />
                 </div>
+                <div
+                    onClick={!isFetchingAll ? fetchAllAmounts : undefined}
+                    className={`cursor-pointer ${isFetchingAll ? 'opacity-50' : ''}`}
+                >
+                    <StatsCard
+                        title="Fetch All Amounts"
+                        value={isFetchingAll ? "Fetching..." : "Click to Fetch"}
+                        icon={isFetchingAll ? Loader2 : RefreshCw}
+                        color="text-amber-500"
+                        subValue="Get amounts from Razorpay"
+                    />
+                </div>
             </div>
 
-            <DataTable
-                data={initialData}
-                columns={columns}
-                searchKeys={["transition_id", "stud_id", "ticket_id", "$id"]}
-                onEdit={handleEditClick}
-                onDelete={handleDeleteClick}
-                onDeleteMany={handleDeleteMany}
-                placeholder="Search by ID..."
-                headerColor="text-purple-400"
-            />
+            {/* Amount Column Display */}
+            <div className="bg-gray-900/50 rounded-lg border border-gray-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-800/50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">ID</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">Transaction ID</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">Student ID</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">Ticket ID</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">Amount (Razorpay)</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-purple-400">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800">
+                            {initialData.map((item) => (
+                                <tr key={item.$id} className="hover:bg-gray-800/30 transition-colors">
+                                    <td className="px-4 py-3 text-sm text-gray-300 font-mono">{item.$id.slice(0, 8)}...</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300 font-mono">{item.transition_id}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">{item.stud_id || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">{item.ticket_id || '-'}</td>
+                                    <td className="px-4 py-3 text-sm">{renderAmount(item)}</td>
+                                    <td className="px-4 py-3 text-sm">
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-cyan-400 hover:text-cyan-300"
+                                                onClick={() => handleEditClick(item)}
+                                            >
+                                                <Edit className="h-3 w-3" />
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-red-400 hover:text-red-300"
+                                                onClick={() => handleDeleteClick(item)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <OverviewModal
                 isOpen={isOverviewOpen}
@@ -243,9 +449,9 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                     </div>
 
                     <div className="flex justify-end space-x-2 pt-4">
-                        <Button 
-                            type="button" 
-                            variant="ghost" 
+                        <Button
+                            type="button"
+                            variant="ghost"
                             onClick={() => {
                                 setIsEditOpen(false);
                                 setFormData({});

@@ -45,21 +45,33 @@ async function getCollectionData(collectionId: string, fetchAll: boolean = false
         const allDocuments: any[] = [];
         let offset = 0;
         const limit = 100; // Appwrite max limit per request
-        let hasMore = true;
+        let dbTotal = 0;
 
-        while (hasMore) {
+        // First request to get total count
+        const firstResponse = await databases.listDocuments(
+            appwriteConfig.databaseId,
+            collectionId,
+            [Query.orderDesc('$createdAt'), Query.limit(limit), Query.offset(0)]
+        );
+        
+        dbTotal = firstResponse.total;
+        allDocuments.push(...firstResponse.documents);
+        offset = limit;
+
+        // Continue fetching remaining documents if needed
+        while (allDocuments.length < dbTotal) {
             const response = await databases.listDocuments(
                 appwriteConfig.databaseId,
                 collectionId,
                 [Query.orderDesc('$createdAt'), Query.limit(limit), Query.offset(offset)]
             );
             
+            if (response.documents.length === 0) break; // No more documents
             allDocuments.push(...response.documents);
             offset += limit;
-            hasMore = response.documents.length === limit;
         }
 
-        return { documents: allDocuments, total: allDocuments.length };
+        return { documents: allDocuments, total: dbTotal };
     } catch (error) {
         console.error(`Error fetching ${collectionId}:`, error);
         return { documents: [], total: 0 };
@@ -457,6 +469,161 @@ export async function getTicketsWithEvents(fetchAll: boolean = false) {
     }));
 
     return { tickets: enrichedTickets, total };
+}
+
+// --- TICKET OPERATIONS ---
+
+export async function issueTicket(ticketId: string, studentId: string) {
+    const { databases } = await createAdminClient();
+    try {
+        // Get current ticket
+        const ticket = await databases.getDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.tickets,
+            ticketId
+        );
+
+        // Get current stud_id array
+        const currentStudIds = Array.isArray(ticket.stud_id) ? ticket.stud_id : [];
+
+        // Check if student already assigned
+        if (currentStudIds.includes(studentId)) {
+            return { success: false, error: 'Student already assigned to this ticket' };
+        }
+
+        // Add new student
+        const updatedStudIds = [...currentStudIds, studentId];
+
+        // Update ticket
+        await databases.updateDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.tickets,
+            ticketId,
+            { stud_id: updatedStudIds }
+        );
+
+        revalidatePath('/dashboard/tickets');
+        return { success: true, message: `Ticket issued to student ${studentId}` };
+    } catch (error) {
+        console.error("Error issuing ticket:", error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to issue ticket' };
+    }
+}
+
+export async function cancelTicket(ticketId: string, studentId: string) {
+    const { databases } = await createAdminClient();
+    try {
+        // Get current ticket
+        const ticket = await databases.getDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.tickets,
+            ticketId
+        );
+
+        // Get current stud_id array
+        const currentStudIds = Array.isArray(ticket.stud_id) ? ticket.stud_id : [];
+
+        // Check if student is assigned
+        if (!currentStudIds.includes(studentId)) {
+            return { success: false, error: 'Student not assigned to this ticket' };
+        }
+
+        // Remove student
+        const updatedStudIds = currentStudIds.filter((id: string) => id !== studentId);
+
+        // Update ticket
+        await databases.updateDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.tickets,
+            ticketId,
+            { stud_id: updatedStudIds }
+        );
+
+        revalidatePath('/dashboard/tickets');
+        return { success: true, message: `Ticket canceled for student ${studentId}` };
+    } catch (error) {
+        console.error("Error canceling ticket:", error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel ticket' };
+    }
+}
+
+export async function createTicketWithTransactions(ticketData: any, studentIds: string[], transactionIds: string[]) {
+    const { databases } = await createAdminClient();
+    try {
+        // Validate inputs
+        if (!ticketData.event_id) {
+            return { success: false, error: 'Event ID is required' };
+        }
+
+        if (studentIds.length === 0) {
+            // Create ticket without students
+            const ticket = await databases.createDocument(
+                appwriteConfig.databaseId,
+                appwriteConfig.collections.tickets,
+                ID.unique(),
+                {
+                    event_id: ticketData.event_id,
+                    team_name: ticketData.team_name || '',
+                    active: ticketData.active ?? true,
+                    stud_id: []
+                }
+            );
+            revalidatePath('/dashboard/tickets');
+            return { success: true, ticketId: ticket.$id, message: 'Ticket created (no students assigned)' };
+        }
+
+        // Create ticket with students
+        const ticket = await databases.createDocument(
+            appwriteConfig.databaseId,
+            appwriteConfig.collections.tickets,
+            ID.unique(),
+            {
+                event_id: ticketData.event_id,
+                team_name: ticketData.team_name || '',
+                active: ticketData.active ?? true,
+                stud_id: studentIds
+            }
+        );
+
+        // Create transactions for each student
+        const transactionsCreated: string[] = [];
+        for (let i = 0; i < studentIds.length; i++) {
+            const studentId = studentIds[i];
+            const transitionId = transactionIds[i] || '';
+
+            try {
+                const transaction = await databases.createDocument(
+                    appwriteConfig.databaseId,
+                    appwriteConfig.collections.transactions,
+                    ID.unique(),
+                    {
+                        stud_id: studentId,
+                        ticket_id: ticket.$id,
+                        transition_id: transitionId,
+                        amount: ticketData.amount || 0
+                    }
+                );
+                transactionsCreated.push(transaction.$id);
+            } catch (txError) {
+                console.warn(`Failed to create transaction for student ${studentId}:`, txError);
+                // Continue creating remaining transactions even if one fails
+            }
+        }
+
+        revalidatePath('/dashboard/tickets');
+        revalidatePath('/dashboard/transactions');
+        
+        return {
+            success: true,
+            ticketId: ticket.$id,
+            transactionsCreated: transactionsCreated.length,
+            totalStudents: studentIds.length,
+            message: `Ticket created with ${studentIds.length} student(s) and ${transactionsCreated.length} transaction(s)`
+        };
+    } catch (error) {
+        console.error("Error creating ticket with transactions:", error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to create ticket' };
+    }
 }
 
 // --- IEEE OPERATIONS ---

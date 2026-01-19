@@ -4,14 +4,15 @@ import { DataTable } from "@/components/dashboard/data-table";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { useRouter } from "next/navigation";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
-import { Users as UsersIcon, BarChart3, Plus } from "lucide-react";
+import { Users as UsersIcon, BarChart3, Plus, Loader2, IndianRupee, RefreshCw, Download } from "lucide-react";
 import bcrypt from "bcryptjs";
 import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
+import { fetchPaymentDetails } from "@/actions/razorpay";
 
 // Define the shape of a User based on Appwrite schema
 interface User {
@@ -25,20 +26,56 @@ interface User {
     tickets?: string[];
 }
 
+interface Transaction {
+    $id: string;
+    transition_id: string;
+    stud_id?: string;
+    ticket_id?: string;
+}
+
+interface Ticket {
+    $id: string;
+    event_id: string;
+    stud_id?: string[];
+    active: boolean;
+}
+
+interface Event {
+    $id: string;
+    event_name: string;
+    amount: string;
+}
+
+interface AmountData {
+    amount?: number;
+    status?: string;
+    method?: string;
+    loading?: boolean;
+    error?: string;
+    isFallback?: boolean; // True if amount came from event price, not Razorpay
+}
+
 interface ClientUsersPageProps {
     initialData: User[];
     total: number;
+    transactions: Transaction[];
+    tickets: Ticket[];
+    events: Event[];
 }
 
-export default function ClientUsersPage({ initialData, total }: ClientUsersPageProps) {
+export default function ClientUsersPage({ initialData, total, transactions, tickets, events }: ClientUsersPageProps) {
     // Log page view
     useActivityLogger();
-    
+
     const router = useRouter();
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<User | null>(null);
     const [formData, setFormData] = useState<Partial<User>>({});
+
+    // Amount fetching state - stores Razorpay data keyed by user $id
+    const [amounts, setAmounts] = useState<Map<string, AmountData>>(new Map());
+    const [isFetchingAll, setIsFetchingAll] = useState(false);
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -47,6 +84,277 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
         chartData: { label: string; value: number }[];
         report: string;
     }>({ metrics: [], chartData: [], report: '' });
+
+    // Create a map of user ID to their transaction
+    const userTransactionMap = new Map<string, Transaction>();
+    transactions.forEach((t) => {
+        if (t.stud_id) {
+            userTransactionMap.set(t.stud_id, t);
+        }
+    });
+
+    // Create a map of user ID to count of tickets they're assigned to
+    const userTicketCountMap = new Map<string, number>();
+    tickets.forEach((ticket) => {
+        if (ticket.stud_id && Array.isArray(ticket.stud_id)) {
+            ticket.stud_id.forEach((studentId) => {
+                userTicketCountMap.set(studentId, (userTicketCountMap.get(studentId) || 0) + 1);
+            });
+        }
+    });
+
+    // Create lookup maps for fallback pricing
+    const ticketMap = new Map<string, Ticket>();
+    tickets.forEach((t) => ticketMap.set(t.$id, t));
+
+    const eventMap = new Map<string, Event>();
+    events.forEach((e) => eventMap.set(e.$id, e));
+
+    // Helper: Get event price from transaction -> ticket -> event chain
+    const getEventPrice = (transaction: Transaction): number | null => {
+        if (!transaction.ticket_id) return null;
+        const ticket = ticketMap.get(transaction.ticket_id);
+        if (!ticket) return null;
+        const event = eventMap.get(ticket.event_id);
+        if (!event) return null;
+        // Extract numeric amount from strings like "300 per team", "500/-"
+        const match = event.amount.match(/[0-9.]+/);
+        return match ? parseFloat(match[0]) : null;
+    };
+
+    // Fetch amount for a single user from Razorpay
+    const fetchAmount = async (userId: string, paymentId: string) => {
+        setAmounts(prev => {
+            const newMap = new Map(prev);
+            newMap.set(userId, { loading: true });
+            return newMap;
+        });
+
+        const result = await fetchPaymentDetails(paymentId);
+
+        if (result.success && result.payment) {
+            setAmounts(prev => {
+                const newMap = new Map(prev);
+                newMap.set(userId, {
+                    amount: result.payment!.amount,
+                    status: result.payment!.status,
+                    method: result.payment!.method,
+                    loading: false
+                });
+                return newMap;
+            });
+        } else {
+            setAmounts(prev => {
+                const newMap = new Map(prev);
+                newMap.set(userId, {
+                    error: result.error || 'Failed to fetch',
+                    loading: false
+                });
+                return newMap;
+            });
+        }
+    };
+
+    // Fetch amounts for ALL transactions from Razorpay (not just user-linked)
+    const fetchAllAmounts = async () => {
+        if (isFetchingAll) return; // Prevent multiple fetches
+        setIsFetchingAll(true);
+
+        for (const transaction of transactions) {
+            if (transaction.transition_id && !amounts.has(transaction.$id)) {
+                // Fetch using transaction $id as key
+                setAmounts(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(transaction.$id, { loading: true });
+                    return newMap;
+                });
+
+                const result = await fetchPaymentDetails(transaction.transition_id);
+
+                if (result.success && result.payment) {
+                    setAmounts(prev => {
+                        const newMap = new Map(prev);
+                        newMap.set(transaction.$id, {
+                            amount: result.payment!.amount,
+                            status: result.payment!.status,
+                            method: result.payment!.method,
+                            loading: false
+                        });
+                        return newMap;
+                    });
+                } else {
+                    // Razorpay failed - try fallback to event price
+                    const fallbackPrice = getEventPrice(transaction);
+                    if (fallbackPrice !== null) {
+                        setAmounts(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(transaction.$id, {
+                                amount: fallbackPrice,
+                                status: 'event price',
+                                loading: false,
+                                isFallback: true
+                            });
+                            return newMap;
+                        });
+                    } else {
+                        setAmounts(prev => {
+                            const newMap = new Map(prev);
+                            newMap.set(transaction.$id, {
+                                error: result.error || 'Failed to fetch',
+                                loading: false
+                            });
+                            return newMap;
+                        });
+                    }
+                }
+                // Small delay to avoid Razorpay rate limiting
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+        }
+
+        setIsFetchingAll(false);
+    };
+
+    // Auto-fetch all amounts on page load
+    useEffect(() => {
+        // Only fetch if there are transactions and we haven't started fetching
+        if (transactions.length > 0 && amounts.size === 0 && !isFetchingAll) {
+            fetchAllAmounts();
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Export to Excel function
+    const exportToExcel = () => {
+        // Create CSV content
+        const headers = ['Name', 'Email', 'Phone', 'College', 'Transaction ID', 'Amount Paid', 'Payment Status', 'Payment Method'];
+
+        const rows = initialData.map(user => {
+            const transaction = userTransactionMap.get(user.$id);
+            // Look up amount by transaction $id (not user $id)
+            const amountData = transaction ? amounts.get(transaction.$id) : undefined;
+
+            return [
+                user.name || '',
+                user.email || '',
+                user.phone?.toString() || '',
+                user.college || '',
+                transaction?.transition_id || '',
+                amountData?.amount !== undefined ? `₹${amountData.amount.toFixed(2)}` : '',
+                amountData?.status || '',
+                amountData?.method || ''
+            ];
+        });
+
+        // Create CSV string
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `users_transactions_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+    // Calculate total revenue from fetched Razorpay amounts
+    const totalRevenue = Array.from(amounts.values()).reduce((sum, item) => sum + (item.amount || 0), 0);
+    const fetchedCount = amounts.size; // Count all attempts (success + errors)
+    const successfulCount = Array.from(amounts.values()).filter(a => a.amount !== undefined).length;
+
+    // Custom render function for the amount column
+    const renderAmount = (user: User) => {
+        const transaction = userTransactionMap.get(user.$id);
+        const ticketCount = userTicketCountMap.get(user.$id) || 0;
+        
+        // If no transaction, show that they haven't paid yet
+        if (!transaction) {
+            if (ticketCount === 0) {
+                return <span className="text-gray-500">-</span>;
+            }
+            return (
+                <div className="flex flex-col">
+                    <span className="text-orange-400 text-xs">No payment</span>
+                    <span className="text-gray-500 text-xs">{ticketCount} ticket(s) issued</span>
+                </div>
+            );
+        }
+
+        // Look up amount by transaction $id (not user $id)
+        const amountData = amounts.get(transaction.$id);
+
+        if (amountData?.loading) {
+            return <Loader2 className="h-4 w-4 animate-spin text-cyan-400" />;
+        }
+
+        if (amountData?.amount !== undefined) {
+            const isFallback = amountData.isFallback;
+            return (
+                <div className="flex flex-col">
+                    <span className={`font-medium ${isFallback ? 'text-yellow-400' : 'text-green-400'}`}>
+                        ₹{amountData.amount.toFixed(2)}
+                    </span>
+                    {amountData.status && (
+                        <span className={`text-xs ${isFallback ? 'text-yellow-500' : (amountData.status === 'captured' ? 'text-green-500' : 'text-yellow-500')}`}>
+                            {isFallback ? '(event price)' : amountData.status}
+                        </span>
+                    )}
+                </div>
+            );
+        }
+
+        if (amountData?.error) {
+            return (
+                <div className="flex items-center gap-1">
+                    <span className="text-red-400 text-xs">{amountData.error}</span>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-5 w-5 p-0"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            fetchAmount(transaction.$id, transaction.transition_id);
+                        }}
+                    >
+                        <RefreshCw className="h-3 w-3 text-gray-400" />
+                    </Button>
+                </div>
+            );
+        }
+
+        return (
+            <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 px-2 text-xs text-cyan-400 hover:text-cyan-300 hover:bg-cyan-400/10"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    fetchAmount(user.$id, transaction.transition_id);
+                }}
+            >
+                <IndianRupee className="h-3 w-3 mr-1" />
+                Fetch
+            </Button>
+        );
+    };
+
+    // Render transaction ID for user
+    const renderTransactionId = (user: User) => {
+        const transaction = userTransactionMap.get(user.$id);
+        if (!transaction) {
+            return <span className="text-gray-500">-</span>;
+        }
+        return (
+            <span className="font-mono text-xs text-gray-300">
+                {transaction.transition_id.slice(0, 12)}...
+            </span>
+        );
+    };
 
     const columns: { key: keyof User; label: string; sortable?: boolean; multiline?: boolean }[] = [
         { key: "name", label: "Name", sortable: true },
@@ -77,7 +385,7 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                 action: `Deleted user: ${selectedItem.name}`,
                 actionType: 'delete',
                 resource: 'users',
-                resourceId: selectedItem.$id,
+                resourceid: selectedItem.$id,
                 details: `Deleted user ${selectedItem.name} (${selectedItem.email})`
             });
             setIsDeleteOpen(false);
@@ -117,7 +425,7 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                     action: `Updated user: ${dataToSave.name}`,
                     actionType: 'update',
                     resource: 'users',
-                    resourceId: selectedItem.$id,
+                    resourceid: selectedItem.$id,
                     details: `Updated user ${dataToSave.name} (${dataToSave.email})`
                 });
             }
@@ -197,6 +505,13 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                     icon={UsersIcon}
                     color="text-cyan-500"
                 />
+                <StatsCard
+                    title="Total Revenue"
+                    value={`₹${totalRevenue.toFixed(2)}`}
+                    icon={IndianRupee}
+                    color="text-green-500"
+                    subValue={`${successfulCount} of ${userTransactionMap.size} payments found`}
+                />
                 <div onClick={handleOverview} className="cursor-pointer">
                     <StatsCard
                         title="Overview"
@@ -206,9 +521,29 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                         subValue="User analytics"
                     />
                 </div>
+                <div
+                    onClick={!isFetchingAll ? fetchAllAmounts : undefined}
+                    className={`cursor-pointer ${isFetchingAll ? 'opacity-50' : ''}`}
+                >
+                    <StatsCard
+                        title="Fetch All Amounts"
+                        value={isFetchingAll ? "Fetching..." : "Click to Fetch"}
+                        icon={isFetchingAll ? Loader2 : RefreshCw}
+                        color="text-amber-500"
+                        subValue="Get amounts from Razorpay"
+                    />
+                </div>
             </div>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+                <Button
+                    onClick={exportToExcel}
+                    className="bg-green-600 hover:bg-green-500 text-white gap-2"
+                    disabled={fetchedCount === 0}
+                >
+                    <Download className="h-4 w-4" />
+                    Export to Excel
+                </Button>
                 <Button
                     onClick={() => { setSelectedItem({} as any); setFormData({}); setIsEditOpen(true); }}
                     className="bg-purple-600 hover:bg-purple-500 text-white gap-2"
@@ -218,15 +553,60 @@ export default function ClientUsersPage({ initialData, total }: ClientUsersPageP
                 </Button>
             </div>
 
-            <DataTable
-                data={initialData}
-                columns={columns}
-                searchKeys={["name", "email", "$id"]}
-                onEdit={handleEditClick}
-                onDelete={handleDeleteClick}
-                placeholder="Search by name, email or ID..."
-                headerColor="text-blue-400"
-            />
+            {/* Custom Table with Transaction ID and Amount columns */}
+            <div className="bg-gray-900/50 rounded-lg border border-gray-800 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-800/50">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Name</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Email</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Phone</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">College</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Tickets Issued</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Transaction ID</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Amount Paid</th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-blue-400">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800">
+                            {initialData
+                                .filter(user => (userTicketCountMap.get(user.$id) || 0) > 0)
+                                .map((user) => (
+                                <tr key={user.$id} className="hover:bg-gray-800/30 transition-colors">
+                                    <td className="px-4 py-3 text-sm text-gray-300">{user.name}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">{user.phone || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-gray-300">{user.college || '-'}</td>
+                                    <td className="px-4 py-3 text-sm text-purple-300 font-medium">{userTicketCountMap.get(user.$id) || 0}</td>
+                                    <td className="px-4 py-3 text-sm">{renderTransactionId(user)}</td>
+                                    <td className="px-4 py-3 text-sm">{renderAmount(user)}</td>
+                                    <td className="px-4 py-3 text-sm">
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-cyan-400 hover:text-cyan-300"
+                                                onClick={() => handleEditClick(user)}
+                                            >
+                                                Edit
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2 text-red-400 hover:text-red-300"
+                                                onClick={() => handleDeleteClick(user)}
+                                            >
+                                                Delete
+                                            </Button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
             <OverviewModal
                 isOpen={isOverviewOpen}

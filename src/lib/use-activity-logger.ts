@@ -9,6 +9,7 @@ interface UseActivityLoggerOptions {
     actionType?: 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'sync' | 'other';
     resource?: string;
     resourceid?: string;
+    details?: string;
 }
 
 /**
@@ -41,7 +42,7 @@ export function useActivityLogger(options?: UseActivityLoggerOptions) {
             try {
                 // Extract page name from pathname
                 const pageName = pathname.split('/').filter(Boolean).pop() || 'dashboard';
-                
+
                 // Determine action and resource from options or pathname
                 const action = options?.action || `Viewed ${pageName} page`;
                 const actionType = options?.actionType || 'view';
@@ -89,6 +90,7 @@ export async function logAdminAction(params: {
     actionType: 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'sync' | 'other';
     resource?: string;
     resourceid?: string;
+    details?: string;
 }) {
     try {
         await fetch('/api/admin-logs', {

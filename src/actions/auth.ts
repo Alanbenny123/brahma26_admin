@@ -74,7 +74,8 @@ export async function login(formData: FormData) {
         });
     } catch (error) {
         console.error("Login error:", error);
-        return { error: "Login failed. Please try again." };
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        return { error: `Login failed: ${errorMsg}` };
     }
     
     // Redirect outside try-catch to prevent catching NEXT_REDIRECT
