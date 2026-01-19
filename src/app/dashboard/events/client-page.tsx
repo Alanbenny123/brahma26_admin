@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useState, useEffect } from "react";
-import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw } from "lucide-react";
+import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw, IndianRupee } from "lucide-react";
 import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
@@ -138,6 +138,24 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
     }, [selectedEventId, initialData, tickets]);
 
     const processedEvents = initialData; // No longer specialized for table
+
+    // Calculate total revenue across all events
+    const totalRevenue = React.useMemo(() => {
+        return initialData.reduce((total, event) => {
+            const eventTickets = tickets.filter(t => t.event_id === event.$id).length;
+            const amountStr = String(event.amount || "0");
+            // Extract first numeric value to avoid concatenation issues
+            const firstMatch = amountStr.match(/[0-9.]+/);
+            const numericAmount = firstMatch ? parseFloat(firstMatch[0]) : 0;
+            const eventRevenue = eventTickets * numericAmount;
+            return total + eventRevenue;
+        }, 0);
+    }, [initialData, tickets]);
+
+    // Count total tickets across all events
+    const totalTickets = React.useMemo(() => {
+        return tickets.length;
+    }, [tickets]);
 
     const handleDeleteClick = (item: any) => {
         setSelectedItem(item);
@@ -728,6 +746,13 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                     value={total}
                     icon={Calendar}
                     color="text-amber-500"
+                />
+                <StatsCard
+                    title="Total Revenue"
+                    value={`₹${totalRevenue.toLocaleString()}`}
+                    icon={IndianRupee}
+                    color="text-green-500"
+                    subValue={`${totalTickets} tickets sold`}
                 />
                 <div onClick={handleOverview} className="cursor-pointer">
                     <StatsCard

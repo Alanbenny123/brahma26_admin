@@ -15,67 +15,100 @@ import {
     deleteFirestoreAttendance,
 } from '@/actions/firebase';
 
+// Optimize: Type definitions for better type safety
+interface SyncRequestBody {
+    type: 'users' | 'events' | 'tickets' | 'transactions' | 'attendance';
+    action: 'create' | 'update' | 'delete';
+    data?: any;
+    id?: string;
+}
+
+// Optimize: Operation mapping to reduce code duplication
+const operationMap = {
+    users: {
+        create: upsertFirestoreUser,
+        update: updateFirestoreUser,
+        delete: deleteFirestoreUser,
+    },
+    events: {
+        create: upsertFirestoreEvent,
+        update: updateFirestoreEvent,
+        delete: deleteFirestoreEvent,
+    },
+    tickets: {
+        create: upsertFirestoreTicket,
+        update: (id: string, data: any) => upsertFirestoreTicket({ ...data, appwriteId: id }),
+        delete: deleteFirestoreTicket,
+    },
+    transactions: {
+        create: upsertFirestoreTransaction,
+        update: updateFirestoreTransaction,
+        delete: deleteFirestoreTransaction,
+    },
+    attendance: {
+        create: upsertFirestoreAttendance,
+        update: (id: string, data: any) => upsertFirestoreAttendance({ ...data, appwriteId: id }),
+        delete: deleteFirestoreAttendance,
+    },
+} as const;
+
 export async function POST(request: NextRequest) {
     try {
-        const body = await request.json();
+        const body = await request.json() as SyncRequestBody;
         const { type, action, data, id } = body;
 
+        // Optimize: Early validation
+        if (!type || !operationMap[type]) {
+            return NextResponse.json(
+                { success: false, error: `Invalid type: ${type}` },
+                { status: 400 }
+            );
+        }
+
+        if (!action || !['create', 'update', 'delete'].includes(action)) {
+            return NextResponse.json(
+                { success: false, error: `Invalid action: ${action}` },
+                { status: 400 }
+            );
+        }
+
+        // Optimize: Validate required parameters based on action
+        if ((action === 'update' || action === 'delete') && !id) {
+            return NextResponse.json(
+                { success: false, error: 'ID is required for update/delete operations' },
+                { status: 400 }
+            );
+        }
+
+        if ((action === 'create' || action === 'update') && !data) {
+            return NextResponse.json(
+                { success: false, error: 'Data is required for create/update operations' },
+                { status: 400 }
+            );
+        }
+
+        // Optimize: Execute operation using the mapping
+        const operations = operationMap[type];
         let result;
 
-        // Handle Users (upsert to prevent duplicates)
-        if (type === 'users') {
-            if (action === 'create') {
-                result = await upsertFirestoreUser(data);
-            } else if (action === 'update' && id) {
-                result = await updateFirestoreUser(id, data);
-            } else if (action === 'delete' && id) {
-                result = await deleteFirestoreUser(id);
-            }
-        }
-        // Handle Events (upsert to prevent duplicates)
-        else if (type === 'events') {
-            if (action === 'create') {
-                result = await upsertFirestoreEvent(data);
-            } else if (action === 'update' && id) {
-                result = await updateFirestoreEvent(id, data);
-            } else if (action === 'delete' && id) {
-                result = await deleteFirestoreEvent(id);
-            }
-        }
-        // Handle Tickets (upsert to prevent duplicates)
-        else if (type === 'tickets') {
-            if (action === 'create') {
-                result = await upsertFirestoreTicket(data);
-            } else if (action === 'update' && id) {
-                result = await upsertFirestoreTicket({ ...data, appwriteId: id });
-            } else if (action === 'delete' && id) {
-                result = await deleteFirestoreTicket(id);
-            }
-        }
-        // Handle Transactions (upsert to prevent duplicates)
-        else if (type === 'transactions') {
-            if (action === 'create') {
-                result = await upsertFirestoreTransaction(data);
-            } else if (action === 'update' && id) {
-                result = await updateFirestoreTransaction(id, data);
-            } else if (action === 'delete' && id) {
-                result = await deleteFirestoreTransaction(id);
-            }
-        }
-        // Handle Attendance (upsert to prevent duplicates)
-        else if (type === 'attendance') {
-            if (action === 'create') {
-                result = await upsertFirestoreAttendance(data);
-            } else if (action === 'update' && id) {
-                result = await upsertFirestoreAttendance({ ...data, appwriteId: id });
-            } else if (action === 'delete' && id) {
-                result = await deleteFirestoreAttendance(id);
-            }
+        if (action === 'create') {
+            result = await operations.create(data);
+        } else if (action === 'update') {
+            result = await operations.update(id!, data);
+        } else if (action === 'delete') {
+            result = await operations.delete(id!);
         }
 
         if (result?.success) {
             console.log(`✅ Sync API Success: ${type}/${action}`, (result as any).action || action);
-            return NextResponse.json({ success: true, result, action: (result as any).action || action });
+            return NextResponse.json(
+                { success: true, result, action: (result as any).action || action },
+                {
+                    headers: {
+                        'Cache-Control': 'no-store, must-revalidate',
+                    }
+                }
+            );
         } else {
             console.error(`❌ Sync API Failed: ${type}/${action}`, result?.error);
             return NextResponse.json(
