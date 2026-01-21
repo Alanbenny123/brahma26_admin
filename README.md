@@ -29,4 +29,4 @@ TypeScript
 Use the Appwrite console to create your first admin account.
 
 📄 License
-Brahma Ashwamedha © 2026
+Brahma Ashwamedha © 2026.
