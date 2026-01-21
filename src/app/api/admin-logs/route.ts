@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Optimize with proper typing and validation
 interface AdminLogBody {
     action: string;
-    actionType: string;
+    actionType: 'view' | 'create' | 'update' | 'delete' | 'login' | 'logout' | 'sync' | 'other';
     resource?: string;
     resourceid?: string;
 }

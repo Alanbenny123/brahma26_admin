@@ -181,7 +181,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 action: `Deleted event: ${selectedItem.event_name}`,
                 actionType: 'delete',
                 resource: 'events',
-                resourceId: selectedItem.$id,
+                resourceid: selectedItem.$id,
                 details: `Deleted event ${selectedItem.event_name} (${selectedItem.fest})`
             });
             setIsDeleteOpen(false);
@@ -264,7 +264,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
                 action: `Updated event: ${dataToSave.event_name}`,
                 actionType: 'update',
                 resource: 'events',
-                resourceId: selectedItem.$id,
+                resourceid: selectedItem.$id,
                 details: `Updated event ${dataToSave.event_name} (${dataToSave.fest})`
             });
             setIsEditOpen(false);

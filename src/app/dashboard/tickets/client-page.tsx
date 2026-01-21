@@ -23,6 +23,7 @@ interface TicketType {
     event_name?: string;
     fest?: string;
     amount?: number;
+    usernames?: string;
 }
 
 interface ClientTicketsPageProps {
@@ -126,7 +127,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         }
 
         const result = await issueTicket(selectedItem.$id, studentIdToIssue);
-        setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error });
+        setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
         
         if (result.success) {
             setStudentIdToIssue('');
@@ -144,7 +145,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         }
 
         const result = await cancelTicket(selectedItem.$id, studentIdToCancel);
-        setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error });
+        setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
         
         if (result.success) {
             setStudentIdToCancel('');
@@ -197,7 +198,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 // Create new ticket with transactions
                 const result = await createTicketWithTransactions(formData, studentIds, transactionIds);
                 if (result.success) {
-                    setMessage({ type: 'success', text: result.message });
+                    setMessage({ type: 'success', text: result.message || 'Ticket created successfully' });
                     
                     // Prepare ticket data for download
                     const selectedEvent = events.find(e => e.$id === formData.event_id);
@@ -211,7 +212,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                         setIsDownloadOpen(true);
                     }
                 } else {
-                    setMessage({ type: 'error', text: result.error });
+                    setMessage({ type: 'error', text: result.error || 'Failed to create ticket' });
                     return;
                 }
             }
