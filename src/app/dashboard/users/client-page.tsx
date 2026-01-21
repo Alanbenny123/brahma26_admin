@@ -72,6 +72,10 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     const [selectedItem, setSelectedItem] = useState<User | null>(null);
     const [formData, setFormData] = useState<Partial<User>>({});
 
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchField, setSearchField] = useState<'name' | 'email' | 'phone' | 'college' | '$id'>('name');
+
     // Amount fetching state - stores Razorpay data keyed by user $id
     const [amounts, setAmounts] = useState<Map<string, AmountData>>(new Map());
     const [isFetchingAll, setIsFetchingAll] = useState(false);
@@ -566,6 +570,51 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                 </Button>
             </div>
 
+            {/* Search Bar */}
+            <div className="flex gap-3 items-center bg-gray-900/50 rounded-lg border border-gray-800 p-4">
+                <div className="w-48">
+                    <select
+                        value={searchField}
+                        onChange={(e) => setSearchField(e.target.value as 'name' | 'email' | 'phone' | 'college' | '$id')}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="name">Name</option>
+                        <option value="email">Email</option>
+                        <option value="phone">Phone</option>
+                        <option value="college">College</option>
+                        <option value="$id">User ID</option>
+                    </select>
+                </div>
+                <div className="flex-1">
+                    <Input
+                        type="text"
+                        placeholder={`Search by ${searchField === '$id' ? 'User ID' : searchField}...`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-gray-800 border-gray-700 text-gray-300"
+                    />
+                </div>
+                {searchQuery && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-gray-300"
+                    >
+                        Clear
+                    </Button>
+                )}
+                <div className="text-sm text-gray-400">
+                    {initialData.filter(user => {
+                        if ((userTicketCountMap.get(user.$id) || 0) === 0) return false;
+                        if (!searchQuery.trim()) return true;
+                        const fieldValue = searchField === '$id' ? user.$id : user[searchField];
+                        if (!fieldValue) return false;
+                        return String(fieldValue).toLowerCase().includes(searchQuery.toLowerCase());
+                    }).length} of {initialData.filter(user => (userTicketCountMap.get(user.$id) || 0) > 0).length} users
+                </div>
+            </div>
+
             {/* Custom Table with Transaction ID and Amount columns */}
             <div className="bg-gray-900/50 rounded-lg border border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -584,7 +633,18 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                         </thead>
                         <tbody className="divide-y divide-gray-800">
                             {initialData
-                                .filter(user => (userTicketCountMap.get(user.$id) || 0) > 0)
+                                .filter(user => {
+                                    // First filter: has tickets
+                                    if ((userTicketCountMap.get(user.$id) || 0) === 0) return false;
+                                    
+                                    // Second filter: search query
+                                    if (!searchQuery.trim()) return true;
+                                    
+                                    const fieldValue = searchField === '$id' ? user.$id : user[searchField];
+                                    if (!fieldValue) return false;
+                                    
+                                    return String(fieldValue).toLowerCase().includes(searchQuery.toLowerCase());
+                                })
                                 .map((user) => (
                                 <tr key={user.$id} className="hover:bg-gray-800/30 transition-colors">
                                     <td className="px-4 py-3 text-sm text-gray-300">{user.name}</td>
