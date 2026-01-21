@@ -48,6 +48,10 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
     // Track fetched transition_ids to prevent duplicate API calls to Razorpay
     const [fetchedTransitionIds, setFetchedTransitionIds] = useState<Set<string>>(new Set());
 
+    // Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchField, setSearchField] = useState<'$id' | 'transition_id' | 'stud_id' | 'ticket_id'>('$id');
+
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
     const [overviewData, setOverviewData] = useState<{
@@ -226,8 +230,18 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
         { key: "ticket_id", label: "Ticket ID", sortable: true },
     ];
 
+    // Filter data based on search query and selected field
+    const filteredData = initialData.filter(item => {
+        if (!searchQuery.trim()) return true;
+        
+        const fieldValue = item[searchField];
+        if (!fieldValue) return false;
+        
+        return fieldValue.toLowerCase().includes(searchQuery.toLowerCase());
+    });
+
     // Transform data to include rendered amounts
-    const dataWithAmounts = initialData.map(item => ({
+    const dataWithAmounts = filteredData.map(item => ({
         ...item,
         _amountRender: renderAmount(item)
     }));
@@ -389,6 +403,44 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                 </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="flex gap-3 items-center bg-gray-900/50 rounded-lg border border-gray-800 p-4">
+                <div className="w-48">
+                    <select
+                        value={searchField}
+                        onChange={(e) => setSearchField(e.target.value as '$id' | 'transition_id' | 'stud_id' | 'ticket_id')}
+                        className="w-full px-3 py-2 bg-gray-800 border border-gray-700 rounded-md text-sm text-gray-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    >
+                        <option value="$id">ID</option>
+                        <option value="transition_id">Transaction ID</option>
+                        <option value="stud_id">Student ID</option>
+                        <option value="ticket_id">Ticket ID</option>
+                    </select>
+                </div>
+                <div className="flex-1">
+                    <Input
+                        type="text"
+                        placeholder={`Search by ${searchField === '$id' ? 'ID' : searchField === 'transition_id' ? 'Transaction ID' : searchField === 'stud_id' ? 'Student ID' : 'Ticket ID'}...`}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-gray-800 border-gray-700 text-gray-300"
+                    />
+                </div>
+                {searchQuery && (
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSearchQuery('')}
+                        className="text-gray-400 hover:text-gray-300"
+                    >
+                        Clear
+                    </Button>
+                )}
+                <div className="text-sm text-gray-400">
+                    {filteredData.length} of {initialData.length} transactions
+                </div>
+            </div>
+
             {/* Amount Column Display */}
             <div className="bg-gray-900/50 rounded-lg border border-gray-800 overflow-hidden">
                 <div className="overflow-x-auto">
@@ -404,7 +456,7 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800">
-                            {initialData.map((item) => (
+                            {filteredData.map((item) => (
                                 <tr key={item.$id} className="hover:bg-gray-800/30 transition-colors">
                                     <td className="px-4 py-3 text-sm text-gray-300 font-mono">{item.$id.slice(0, 8)}...</td>
                                     <td className="px-4 py-3 text-sm text-gray-300 font-mono">{item.transition_id}</td>
