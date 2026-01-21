@@ -52,7 +52,6 @@ interface AmountData {
     method?: string;
     loading?: boolean;
     error?: string;
-    isFallback?: boolean; // True if amount came from event price, not Razorpay
 }
 
 interface ClientUsersPageProps {
@@ -161,6 +160,8 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         setIsFetchingAll(true);
 
         for (const transaction of transactions) {
+            // Only fetch if transition_id exists AND hasn't been fetched before
+            // Skip transactions without payment IDs (no payment made)
             if (transaction.transition_id && !amounts.has(transaction.$id)) {
                 // Fetch using transaction $id as key
                 setAmounts(prev => {
@@ -183,29 +184,15 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                         return newMap;
                     });
                 } else {
-                    // Razorpay failed - try fallback to event price
-                    const fallbackPrice = getEventPrice(transaction);
-                    if (fallbackPrice !== null) {
-                        setAmounts(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(transaction.$id, {
-                                amount: fallbackPrice,
-                                status: 'event price',
-                                loading: false,
-                                isFallback: true
-                            });
-                            return newMap;
+                    // If payment ID is available, don't fall back to event price - show error instead
+                    setAmounts(prev => {
+                        const newMap = new Map(prev);
+                        newMap.set(transaction.$id, {
+                            error: result.error || 'Failed to fetch',
+                            loading: false
                         });
-                    } else {
-                        setAmounts(prev => {
-                            const newMap = new Map(prev);
-                            newMap.set(transaction.$id, {
-                                error: result.error || 'Failed to fetch',
-                                loading: false
-                            });
-                            return newMap;
-                        });
-                    }
+                        return newMap;
+                    });
                 }
                 // Small delay to avoid Razorpay rate limiting
                 await new Promise(resolve => setTimeout(resolve, 300));
@@ -217,11 +204,38 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
 
     // Auto-fetch all amounts on page load
     useEffect(() => {
-        // Only fetch if there are transactions and we haven't started fetching
-        if (transactions.length > 0 && amounts.size === 0 && !isFetchingAll) {
+        // Try to load from localStorage first
+        const cachedAmounts = localStorage.getItem('razorpay_amounts_users');
+        let initialAmounts = new Map<string, AmountData>();
+        
+        if (cachedAmounts) {
+            try {
+                const parsed = JSON.parse(cachedAmounts);
+                initialAmounts = new Map(Object.entries(parsed));
+                setAmounts(initialAmounts);
+            } catch (error) {
+                console.warn('Failed to load cached amounts:', error);
+            }
+        }
+
+        // Always fetch amounts for transactions that haven't been fetched yet
+        // This ensures we get complete data even if cache was incomplete
+        if (transactions.length > 0 && !isFetchingAll) {
             fetchAllAmounts();
         }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Save amounts to localStorage whenever they change
+    useEffect(() => {
+        if (amounts.size > 0) {
+            try {
+                const toStore = Object.fromEntries(amounts);
+                localStorage.setItem('razorpay_amounts_users', JSON.stringify(toStore));
+            } catch (error) {
+                console.warn('Failed to save amounts to localStorage:', error);
+            }
+        }
+    }, [amounts]);
 
     // Export to Excel function
     const exportToExcel = () => {
@@ -293,15 +307,14 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         }
 
         if (amountData?.amount !== undefined) {
-            const isFallback = amountData.isFallback;
             return (
                 <div className="flex flex-col">
-                    <span className={`font-medium ${isFallback ? 'text-yellow-400' : 'text-green-400'}`}>
+                    <span className="font-medium text-green-400">
                         ₹{amountData.amount.toFixed(2)}
                     </span>
                     {amountData.status && (
-                        <span className={`text-xs ${isFallback ? 'text-yellow-500' : (amountData.status === 'captured' ? 'text-green-500' : 'text-yellow-500')}`}>
-                            {isFallback ? '(event price)' : amountData.status}
+                        <span className={`text-xs ${amountData.status === 'captured' ? 'text-green-500' : 'text-yellow-500'}`}>
+                            {amountData.status}
                         </span>
                     )}
                 </div>

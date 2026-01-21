@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Trash2, Edit, Plus, Receipt, BarChart3, IndianRupee, Loader2, RefreshCw } from "lucide-react";
 import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
@@ -45,6 +45,8 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
     // Amount fetching state - stores Razorpay data keyed by transaction $id
     const [amounts, setAmounts] = useState<Map<string, AmountData>>(new Map());
     const [isFetchingAll, setIsFetchingAll] = useState(false);
+    // Track fetched transition_ids to prevent duplicate API calls to Razorpay
+    const [fetchedTransitionIds, setFetchedTransitionIds] = useState<Set<string>>(new Set());
 
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
@@ -55,12 +57,22 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
     }>({ metrics: [], chartData: [], report: '' });
 
     // Fetch amount for a single transaction from Razorpay
+    // Only fetches if the transition_id hasn't been fetched before (prevents duplicate API calls)
     const fetchAmount = async (transactionId: string, paymentId: string) => {
+        // Check if this transition_id has already been fetched
+        if (fetchedTransitionIds.has(paymentId)) {
+            // Already fetched, don't make another request
+            return;
+        }
+
         setAmounts(prev => {
             const newMap = new Map(prev);
             newMap.set(transactionId, { loading: true });
             return newMap;
         });
+
+        // Mark this transition_id as being fetched to prevent duplicates
+        setFetchedTransitionIds(prev => new Set(prev).add(paymentId));
 
         const result = await fetchPaymentDetails(paymentId);
 
@@ -88,11 +100,13 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
     };
 
     // Fetch amounts for all transactions from Razorpay
+    // Uses transition_id to prevent duplicate fetches - each transition_id is only fetched once
     const fetchAllAmounts = async () => {
         setIsFetchingAll(true);
 
         for (const transaction of initialData) {
-            if (transaction.transition_id && !amounts.has(transaction.$id)) {
+            // Only fetch if transition_id exists AND hasn't been fetched before
+            if (transaction.transition_id && !fetchedTransitionIds.has(transaction.transition_id)) {
                 await fetchAmount(transaction.$id, transaction.transition_id);
                 // Small delay to avoid Razorpay rate limiting
                 await new Promise(resolve => setTimeout(resolve, 300));
@@ -101,6 +115,41 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
 
         setIsFetchingAll(false);
     };
+
+    // Auto-fetch all amounts on page load
+    useEffect(() => {
+        // Try to load from localStorage first
+        const cachedAmounts = localStorage.getItem('razorpay_amounts_transactions');
+        let initialAmounts = new Map<string, AmountData>();
+        
+        if (cachedAmounts) {
+            try {
+                const parsed = JSON.parse(cachedAmounts);
+                initialAmounts = new Map(Object.entries(parsed));
+                setAmounts(initialAmounts);
+            } catch (error) {
+                console.warn('Failed to load cached amounts:', error);
+            }
+        }
+
+        // Always fetch amounts for transactions that haven't been fetched yet
+        // This ensures we get complete data even if cache was incomplete
+        if (initialData.length > 0 && !isFetchingAll) {
+            fetchAllAmounts();
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // Save amounts to localStorage whenever they change
+    useEffect(() => {
+        if (amounts.size > 0) {
+            try {
+                const toStore = Object.fromEntries(amounts);
+                localStorage.setItem('razorpay_amounts_transactions', JSON.stringify(toStore));
+            } catch (error) {
+                console.warn('Failed to save amounts to localStorage:', error);
+            }
+        }
+    }, [amounts]);
 
     // Calculate total revenue from fetched Razorpay amounts
     const totalRevenue = Array.from(amounts.values()).reduce((sum, item) => sum + (item.amount || 0), 0);
@@ -294,6 +343,15 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
 
     return (
         <div className="space-y-6">
+            {/* Warning when not all payments are fetched */}
+            {successfulCount < total && successfulCount > 0 && (
+                <div className="bg-amber-900/30 border border-amber-700 rounded-lg p-4 text-amber-200 text-sm">
+                    <p className="font-semibold mb-1">⚠️ Incomplete Data</p>
+                    <p>Only {successfulCount} of {total} payment amounts have been fetched. The total revenue shown (₹{totalRevenue.toFixed(2)}) is incomplete.</p>
+                    <p className="text-xs text-amber-300 mt-2">Missing: {total - successfulCount} payments. The actual total may be higher.</p>
+                </div>
+            )}
+
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total Transactions"
