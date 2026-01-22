@@ -29,6 +29,7 @@ const moreNavItems = [
     { name: "Sync", href: "/dashboard/sync", icon: RefreshCw },
     { name: "Migrate Events", href: "/dashboard/migrate-events", icon: RefreshCw },
     { name: "Data Fetch", href: "/dashboard/data-example", icon: Database },
+    { name: "Issue Ticket", href: "/dashboard/issue-ticket", icon: Ticket },
 ];
 
 interface DashboardNavProps {
