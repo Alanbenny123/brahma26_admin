@@ -35,9 +35,10 @@ interface UserWithEventNames extends UserWithEvents {
 interface ClientUserEventsPageProps {
     initialData: UserWithEvents[];
     total: number;
+    allEvents: any[];
 }
 
-export default function ClientUserEventsPage({ initialData, total }: ClientUserEventsPageProps) {
+export default function ClientUserEventsPage({ initialData, total, allEvents }: ClientUserEventsPageProps) {
     // Log page view
     useActivityLogger();
     
@@ -69,30 +70,34 @@ export default function ClientUserEventsPage({ initialData, total }: ClientUserE
         return acc;
     }, {} as Record<string, number>);
 
-    // Group events with their registered users
-    const eventsWithUsers = users.reduce((acc, user) => {
-        user.registeredEvents?.forEach(event => {
-            if (!acc[event.eventId]) {
-                acc[event.eventId] = {
-                    eventId: event.eventId,
-                    eventName: event.eventName,
-                    fest: event.fest,
-                    date: event.date,
-                    time: event.time,
-                    active: event.active,
-                    users: []
-                };
-            }
-            acc[event.eventId].users.push({
-                name: user.name,
-                email: user.email,
-                phone: user.phone,
-                college: user.college,
-                teamName: event.teamName
-            });
-        });
+    // Initialize with ALL events (including those with 0 registrations)
+    const eventsWithUsers = allEvents.reduce((acc, event) => {
+        acc[event.$id] = {
+            eventId: event.$id,
+            eventName: event.event_name,
+            fest: event.fest,
+            date: event.date,
+            time: event.time,
+            active: event.active,
+            users: []
+        };
         return acc;
     }, {} as Record<string, { eventId: string; eventName: string; fest: string; date: string; time: string; active: boolean; users: Array<{ name: string; email: string; phone?: string; college?: string; teamName?: string }> }>);
+
+    // Add registered users to events
+    users.forEach(user => {
+        user.registeredEvents?.forEach(event => {
+            if (eventsWithUsers[event.eventId]) {
+                eventsWithUsers[event.eventId].users.push({
+                    name: user.name,
+                    email: user.email,
+                    phone: user.phone,
+                    college: user.college,
+                    teamName: event.teamName
+                });
+            }
+        });
+    });
 
     const eventsArray = Object.values(eventsWithUsers).map(event => ({
         $id: event.eventId, // Add $id for DataTable key prop

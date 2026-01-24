@@ -1,8 +1,9 @@
-import { getUsersWithEvents } from "@/actions/appwrite";
+import { getUsersWithEvents, getEvents } from "@/actions/appwrite";
 import ClientUserEventsPage from "./client-page";
 
 export default async function UserEventsPage() {
     const { users, total } = await getUsersWithEvents(true); // Fetch ALL users with their events
+    const { documents: events } = await getEvents(true); // Fetch ALL events
 
     return (
         <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -12,7 +13,7 @@ export default async function UserEventsPage() {
                 </h1>
             </div>
 
-            <ClientUserEventsPage initialData={users || []} total={total || 0} />
+            <ClientUserEventsPage initialData={users || []} total={total || 0} allEvents={events || []} />
         </div>
     );
 }
