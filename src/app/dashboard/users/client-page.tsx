@@ -69,7 +69,10 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     const router = useRouter();
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
+    const [isEditTransactionOpen, setIsEditTransactionOpen] = useState(false);
     const [selectedItem, setSelectedItem] = useState<User | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    const [transactionIdInput, setTransactionIdInput] = useState('');
     const [formData, setFormData] = useState<Partial<User>>({});
 
     // Search State
@@ -361,15 +364,61 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     };
 
     // Render transaction ID for user
+    const handleEditTransactionId = (user: User) => {
+        const transaction = userTransactionMap.get(user.$id);
+        if (transaction) {
+            setSelectedTransaction(transaction);
+            setTransactionIdInput(transaction.transition_id);
+            setIsEditTransactionOpen(true);
+        }
+    };
+
+    const handleSaveTransactionId = async () => {
+        if (!selectedTransaction || !transactionIdInput.trim()) {
+            alert('Transaction ID cannot be empty');
+            return;
+        }
+
+        try {
+            await updateItem('transactions', selectedTransaction.$id, {
+                transition_id: transactionIdInput.trim()
+            });
+            
+            await logAdminAction('UPDATE', 'transactions', selectedTransaction.$id);
+            
+            setIsEditTransactionOpen(false);
+            setSelectedTransaction(null);
+            setTransactionIdInput('');
+            
+            // Refresh page to show updated data
+            router.refresh();
+        } catch (error) {
+            console.error('Error updating transaction ID:', error);
+            alert('Failed to update transaction ID');
+        }
+    };
+
     const renderTransactionId = (user: User) => {
         const transaction = userTransactionMap.get(user.$id);
         if (!transaction) {
             return <span className="text-gray-500">-</span>;
         }
         return (
-            <span className="font-mono text-xs text-gray-300">
-                {transaction.transition_id.slice(0, 12)}...
-            </span>
+            <div className="flex items-center gap-2">
+                <span className="font-mono text-xs text-gray-300">
+                    {transaction.transition_id.slice(0, 12)}...
+                </span>
+                <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0 text-cyan-400 hover:text-cyan-300"
+                    onClick={() => handleEditTransactionId(user)}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+                    </svg>
+                </Button>
+            </div>
         );
     };
 
@@ -757,6 +806,52 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                         <Button type="submit" className="bg-cyan-500 text-black hover:bg-cyan-400">Save</Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Edit Transaction ID Modal */}
+            <Modal
+                isOpen={isEditTransactionOpen}
+                onClose={() => {
+                    setIsEditTransactionOpen(false);
+                    setSelectedTransaction(null);
+                    setTransactionIdInput('');
+                }}
+                title="Edit Transaction ID"
+                description="Update the transaction ID for this user"
+            >
+                <div className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">Transaction ID</label>
+                        <Input
+                            value={transactionIdInput}
+                            onChange={(e) => setTransactionIdInput(e.target.value)}
+                            placeholder="Enter transaction ID"
+                            className="bg-white/5 border-white/10 font-mono"
+                        />
+                    </div>
+                    <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded text-xs text-blue-300">
+                        💡 This is the Razorpay payment ID or transition link ID
+                    </div>
+                    <div className="flex justify-end space-x-2 pt-4">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => {
+                                setIsEditTransactionOpen(false);
+                                setSelectedTransaction(null);
+                                setTransactionIdInput('');
+                            }}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveTransactionId}
+                            className="bg-cyan-500 text-black hover:bg-cyan-400"
+                        >
+                            Save
+                        </Button>
+                    </div>
+                </div>
             </Modal>
         </div>
     );
