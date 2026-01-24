@@ -48,6 +48,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
     const [studentIdToCancel, setStudentIdToCancel] = useState('');
     const [initialStudentsInput, setInitialStudentsInput] = useState('');
     const [transactionIdsInput, setTransactionIdsInput] = useState('');
+    const [paymentId, setPaymentId] = useState('');
+    const [orderId, setOrderId] = useState('');
+    const [transactionAmount, setTransactionAmount] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [newTicketData, setNewTicketData] = useState<{ ticketId: string; eventName: string; eventId: string; teamName?: string } | null>(null);
 
@@ -131,6 +134,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         
         if (result.success) {
             setStudentIdToIssue('');
+            setPaymentId('');
+            setOrderId('');
+            setTransactionAmount('');
             setIsIssueOpen(false);
             setSelectedItem(null);
             // Refresh page data
@@ -413,6 +419,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 onClose={() => {
                     setIsIssueOpen(false);
                     setStudentIdToIssue('');
+                    setPaymentId('');
+                    setOrderId('');
+                    setTransactionAmount('');
                     setSelectedItem(null);
                 }}
                 title="Issue Ticket"
@@ -437,6 +446,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                             onClick={() => {
                                 setIsIssueOpen(false);
                                 setStudentIdToIssue('');
+                                setPaymentId('');
+                                setOrderId('');
+                                setTransactionAmount('');
                                 setSelectedItem(null);
                             }}
                         >
@@ -571,30 +583,6 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                                 {initialStudentsInput.trim() && (
                                     <div className="bg-green-500/10 border border-green-500/30 p-2 rounded text-xs text-green-300">
                                         Will assign to {initialStudentsInput.split(',').filter(id => id.trim().length > 0).length} user(s)
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Transaction IDs (Razorpay) */}
-                            <div className="space-y-2 border-t border-gray-700 pt-4 mt-4">
-                                <div className="flex items-center gap-2">
-                                    <AlertCircle className="h-4 w-4 text-amber-400" />
-                                    <label className="text-sm text-gray-400">Transaction IDs (optional)</label>
-                                </div>
-                                <Input
-                                    value={transactionIdsInput}
-                                    onChange={(e) => setTransactionIdsInput(e.target.value)}
-                                    placeholder="Enter Razorpay transaction IDs separated by commas"
-                                    className="bg-white/5 border-white/10"
-                                />
-                                <p className="text-xs text-gray-500">Format: pay_XXX, pay_YYY, pay_ZZZ (must match student count)</p>
-                                {initialStudentsInput.trim() && transactionIdsInput.trim() && (
-                                    <div className="bg-blue-500/10 border border-blue-500/30 p-2 rounded text-xs text-blue-300">
-                                        <div>Students: {initialStudentsInput.split(',').filter(id => id.trim().length > 0).length}</div>
-                                        <div>Transaction IDs: {transactionIdsInput.split(',').filter(id => id.trim().length > 0).length}</div>
-                                        {initialStudentsInput.split(',').filter(id => id.trim().length > 0).length !== transactionIdsInput.split(',').filter(id => id.trim().length > 0).length && (
-                                            <div className="text-amber-300 mt-1">⚠️ Count mismatch!</div>
-                                        )}
                                     </div>
                                 )}
                             </div>
