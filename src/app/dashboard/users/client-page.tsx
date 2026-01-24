@@ -606,12 +606,11 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                 )}
                 <div className="text-sm text-gray-400">
                     {initialData.filter(user => {
-                        if ((userTicketCountMap.get(user.$id) || 0) === 0) return false;
                         if (!searchQuery.trim()) return true;
                         const fieldValue = searchField === '$id' ? user.$id : user[searchField];
                         if (!fieldValue) return false;
                         return String(fieldValue).toLowerCase().includes(searchQuery.toLowerCase());
-                    }).length} of {initialData.filter(user => (userTicketCountMap.get(user.$id) || 0) > 0).length} users
+                    }).length} of {initialData.length} users
                 </div>
             </div>
 
@@ -634,10 +633,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                         <tbody className="divide-y divide-gray-800">
                             {initialData
                                 .filter(user => {
-                                    // First filter: has tickets
-                                    if ((userTicketCountMap.get(user.$id) || 0) === 0) return false;
-                                    
-                                    // Second filter: search query
+                                    // Search query filter only
                                     if (!searchQuery.trim()) return true;
                                     
                                     const fieldValue = searchField === '$id' ? user.$id : user[searchField];
