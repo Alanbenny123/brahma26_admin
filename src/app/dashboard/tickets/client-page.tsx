@@ -116,9 +116,42 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
     const confirmDelete = async () => {
         if (selectedItem) {
-            await deleteItem('tickets', selectedItem.$id);
-            setIsDeleteOpen(false);
-            setSelectedItem(null);
+            try {
+                // If ticket has assigned users, remove ticket from their records
+                if (selectedItem.stud_id && selectedItem.stud_id.length > 0) {
+                    // Find users in the current users list that are assigned to this ticket
+                    const assignedUsers = users.filter(user => 
+                        selectedItem.stud_id?.includes(user.$id)
+                    );
+                    
+                    // Update each user to remove this ticket ID from their tickets array
+                    for (const user of assignedUsers) {
+                        if (user.tickets && Array.isArray(user.tickets)) {
+                            const updatedTickets = user.tickets.filter(
+                                (ticketId: string) => ticketId !== selectedItem.$id
+                            );
+                            
+                            // Update user's tickets array
+                            await updateItem('users', user.$id, {
+                                tickets: updatedTickets
+                            });
+                        }
+                    }
+                }
+                
+                // Now delete the ticket
+                await deleteItem('tickets', selectedItem.$id);
+                
+                setMessage({ type: 'success', text: 'Ticket deleted successfully' });
+                setIsDeleteOpen(false);
+                setSelectedItem(null);
+                
+                // Refresh page after a short delay
+                setTimeout(() => window.location.reload(), 1000);
+            } catch (error) {
+                console.error('Error deleting ticket:', error);
+                setMessage({ type: 'error', text: 'Failed to delete ticket' });
+            }
         }
     };
 
@@ -284,7 +317,41 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
     const handleDeleteMany = async (items: TicketType[]) => {
         if (confirm(`Are you sure you want to delete ${items.length} tickets?`)) {
-            await Promise.all(items.map(item => deleteItem('tickets', item.$id)));
+            try {
+                // For each ticket to delete
+                for (const item of items) {
+                    // If ticket has assigned users, remove ticket from their records
+                    if (item.stud_id && item.stud_id.length > 0) {
+                        const assignedUsers = users.filter(user => 
+                            item.stud_id?.includes(user.$id)
+                        );
+                        
+                        // Update each user to remove this ticket ID
+                        for (const user of assignedUsers) {
+                            if (user.tickets && Array.isArray(user.tickets)) {
+                                const updatedTickets = user.tickets.filter(
+                                    (ticketId: string) => ticketId !== item.$id
+                                );
+                                
+                                await updateItem('users', user.$id, {
+                                    tickets: updatedTickets
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Now delete all tickets
+                await Promise.all(items.map(item => deleteItem('tickets', item.$id)));
+                
+                setMessage({ type: 'success', text: `${items.length} tickets deleted successfully` });
+                
+                // Refresh page after a short delay
+                setTimeout(() => window.location.reload(), 1000);
+            } catch (error) {
+                console.error('Error deleting tickets:', error);
+                setMessage({ type: 'error', text: 'Failed to delete some tickets' });
+            }
         }
     };
 
