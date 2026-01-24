@@ -7,7 +7,6 @@ Install dependencies
 Set up environment variables
 
 Create .env.local:
-
 Run the app
 
 Open http://localhost:3000
