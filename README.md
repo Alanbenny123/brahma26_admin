@@ -28,5 +28,4 @@ TypeScript
 📝 Default Login
 Use the Appwrite console to create your first admin account.
 📄 License
-
 Brahma Ashwamedha © 2026.
