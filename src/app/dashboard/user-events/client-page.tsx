@@ -99,7 +99,9 @@ export default function ClientUserEventsPage({ initialData, total, allEvents }: 
         });
     });
 
-    const eventsArray = Object.values(eventsWithUsers).map(event => ({
+    type EventWithUsers = { eventId: string; eventName: string; fest: string; date: string; time: string; active: boolean; users: Array<{ name: string; email: string; phone?: string; college?: string; teamName?: string }> };
+    
+    const eventsArray = (Object.values(eventsWithUsers) as EventWithUsers[]).map(event => ({
         $id: event.eventId, // Add $id for DataTable key prop
         ...event,
         registrationCount: event.users.length

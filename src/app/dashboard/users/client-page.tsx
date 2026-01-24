@@ -384,7 +384,12 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                 transition_id: transactionIdInput.trim()
             });
             
-            await logAdminAction('UPDATE', 'transactions', selectedTransaction.$id);
+            await logAdminAction({
+                action: 'Updated transaction ID',
+                actionType: 'update',
+                resource: 'transactions',
+                resourceid: selectedTransaction.$id
+            });
             
             setIsEditTransactionOpen(false);
             setSelectedTransaction(null);
