@@ -50,7 +50,6 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
     const [transactionIdsInput, setTransactionIdsInput] = useState('');
     const [paymentId, setPaymentId] = useState('');
     const [orderId, setOrderId] = useState('');
-    const [transactionAmount, setTransactionAmount] = useState('');
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [newTicketData, setNewTicketData] = useState<{ ticketId: string; eventName: string; eventId: string; teamName?: string } | null>(null);
 
@@ -136,7 +135,6 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
             setStudentIdToIssue('');
             setPaymentId('');
             setOrderId('');
-            setTransactionAmount('');
             setIsIssueOpen(false);
             setSelectedItem(null);
             // Refresh page data
@@ -421,7 +419,6 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                     setStudentIdToIssue('');
                     setPaymentId('');
                     setOrderId('');
-                    setTransactionAmount('');
                     setSelectedItem(null);
                 }}
                 title="Issue Ticket"
@@ -437,9 +434,33 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                             className="bg-white/5 border-white/10"
                         />
                     </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <label className="text-sm text-gray-400 uppercase tracking-wider">Payment ID (Transition Link)</label>
+                            <Input
+                                value={paymentId}
+                                onChange={(e) => setPaymentId(e.target.value)}
+                                placeholder="Enter payment ID"
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm text-gray-400 uppercase tracking-wider">Order ID</label>
+                            <Input
+                                value={orderId}
+                                onChange={(e) => setOrderId(e.target.value)}
+                                placeholder="Enter order ID"
+                                className="bg-white/5 border-white/10"
+                            />
+                        </div>
+                    </div>
+
                     <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded text-sm text-blue-300">
                         Currently assigned: {selectedItem?.stud_id?.length || 0} students
                     </div>
+                    
+                    <p className="text-xs text-gray-500 italic">* Backend logic will duplicate the Payment ID into the required transition_id field.</p>
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button
                             variant="ghost"
@@ -448,7 +469,6 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                                 setStudentIdToIssue('');
                                 setPaymentId('');
                                 setOrderId('');
-                                setTransactionAmount('');
                                 setSelectedItem(null);
                             }}
                         >
