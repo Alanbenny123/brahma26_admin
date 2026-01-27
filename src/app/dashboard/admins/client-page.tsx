@@ -8,7 +8,7 @@ import { useState } from "react";
 import { Trash2, Plus, Shield, UserCog } from "lucide-react";
 import { deleteAdmin, createAdmin, updateAdmin } from "@/actions/auth";
 import { StatsCard } from "@/components/dashboard/stats-card";
-import { useActivityLogger } from "@/lib/use-activity-logger";
+import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
 
 interface AdminType {
     $id: string;
@@ -28,7 +28,7 @@ interface ClientAdminsPageProps {
 export default function ClientAdminsPage({ initialData, total }: ClientAdminsPageProps) {
     // Log page view
     useActivityLogger();
-    
+
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
@@ -77,10 +77,17 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
             setIsLoading(true);
             const result = await deleteAdmin(selectedItem.$id);
             setIsLoading(false);
-            
+
             if (!result.success) {
                 alert(result.error || 'Failed to delete admin');
             } else {
+                await logAdminAction({
+                    action: `Deleted admin: ${selectedItem.email}`,
+                    actionType: 'delete',
+                    resource: 'admins',
+                    resourceid: selectedItem.$id,
+                    details: `Deleted admin ${selectedItem.email}`
+                });
                 setIsDeleteOpen(false);
                 setSelectedItem(null);
                 window.location.reload(); // Refresh to show updated list
@@ -103,6 +110,12 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
         if (!result.success) {
             setError(result.error || 'Failed to create admin');
         } else {
+            await logAdminAction({
+                action: `Created new admin: ${formData.email}`,
+                actionType: 'create',
+                resource: 'admins',
+                details: `Created new admin ${formData.email}`
+            });
             setIsCreateOpen(false);
             setFormData({ email: '', password: '' });
             window.location.reload(); // Refresh to show new admin
@@ -128,6 +141,13 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
         if (!result.success) {
             setError(result.error || 'Failed to update admin');
         } else {
+            await logAdminAction({
+                action: `Updated admin: ${formData.email}`,
+                actionType: 'update',
+                resource: 'admins',
+                resourceid: selectedItem.$id,
+                details: `Updated admin ${formData.email}`
+            });
             setIsEditOpen(false);
             setSelectedItem(null);
             setFormData({ email: '', password: '' });
@@ -173,14 +193,14 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
                         ⚠️ This action cannot be undone. The admin will lose all access immediately.
                     </p>
                     <div className="flex space-x-2 justify-end">
-                        <Button 
-                            variant="outline" 
+                        <Button
+                            variant="outline"
                             onClick={() => setIsDeleteOpen(false)}
                             disabled={isLoading}
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             onClick={confirmDelete}
                             disabled={isLoading}
                             className="bg-red-500 hover:bg-red-600"
@@ -199,7 +219,7 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
                             {error}
                         </div>
                     )}
-                    
+
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Email</label>
                         <Input
@@ -229,15 +249,15 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
                     </div>
 
                     <div className="flex space-x-2 justify-end pt-4">
-                        <Button 
+                        <Button
                             type="button"
-                            variant="outline" 
+                            variant="outline"
                             onClick={() => setIsCreateOpen(false)}
                             disabled={isLoading}
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             type="submit"
                             disabled={isLoading}
                             className="bg-green-500 hover:bg-green-600"
@@ -256,7 +276,7 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
                             {error}
                         </div>
                     )}
-                    
+
                     <div className="space-y-2">
                         <label className="text-sm text-gray-400">Email</label>
                         <Input
@@ -285,15 +305,15 @@ export default function ClientAdminsPage({ initialData, total }: ClientAdminsPag
                     </div>
 
                     <div className="flex space-x-2 justify-end pt-4">
-                        <Button 
+                        <Button
                             type="button"
-                            variant="outline" 
+                            variant="outline"
                             onClick={() => setIsEditOpen(false)}
                             disabled={isLoading}
                         >
                             Cancel
                         </Button>
-                        <Button 
+                        <Button
                             type="submit"
                             disabled={isLoading}
                             className="bg-blue-500 hover:bg-blue-600"

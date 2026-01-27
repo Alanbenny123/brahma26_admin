@@ -30,7 +30,7 @@ interface LogWithFormatting extends AdminLog {
 export default function ClientAdminLogsPage({ initialLogs, initialTotal, stats }: ClientAdminLogsPageProps) {
     // Log page view activity
     useActivityLogger();
-    
+
     const [selectedLog, setSelectedLog] = useState<AdminLog | null>(null);
     const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [filterType, setFilterType] = useState<string>('all');
@@ -171,11 +171,10 @@ export default function ClientAdminLogsPage({ initialLogs, initialTotal, stats }
                 <div className="flex flex-wrap gap-2 bg-gray-800/50 p-4 rounded-lg">
                     <button
                         onClick={() => setFilterType('all')}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                            filterType === 'all'
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                        }`}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${filterType === 'all'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                            }`}
                     >
                         All Actions ({filteredLogs.length})
                     </button>
@@ -185,11 +184,10 @@ export default function ClientAdminLogsPage({ initialLogs, initialTotal, stats }
                             <button
                                 key={type}
                                 onClick={() => setFilterType(type)}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-                                    filterType === type
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-                                }`}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${filterType === type
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                    }`}
                             >
                                 <span className={getActionTypeColor(type)}>
                                     {getActionTypeIcon(type)}

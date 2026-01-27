@@ -45,9 +45,9 @@ export async function createAdminLog(params: CreateAdminLogParams) {
 
         // Get IP address and user agent from headers
         const headersList = await headers();
-        const ipAddress = headersList.get('x-forwarded-for') || 
-                         headersList.get('x-real-ip') || 
-                         'unknown';
+        const ipAddress = headersList.get('x-forwarded-for') ||
+            headersList.get('x-real-ip') ||
+            'unknown';
         const userAgent = headersList.get('user-agent') || 'unknown';
 
         const logData = {
@@ -91,7 +91,7 @@ export async function getAdminLogs(options?: {
 }) {
     try {
         const { databases } = await createAdminClient();
-        
+
         const queries: any[] = [
             Query.orderDesc('timestamp'),
         ];
@@ -150,9 +150,9 @@ export async function getAdminLogs(options?: {
 export async function getAdminLogStats(adminEmail?: string) {
     try {
         const { databases } = await createAdminClient();
-        
+
         const queries: any[] = [Query.limit(5000)];
-        
+
         if (adminEmail) {
             queries.push(Query.equal('adminEmail', adminEmail));
         }
@@ -211,10 +211,10 @@ export async function getAdminLogStats(adminEmail?: string) {
 export async function deleteOldAdminLogs(daysOld: number = 90) {
     try {
         const { databases } = await createAdminClient();
-        
+
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-        
+
         const response = await databases.listDocuments(
             appwriteConfig.databaseId,
             'admin_logs',

@@ -10,7 +10,7 @@ import { Trash2, Edit, Plus, Ticket, BarChart3, Send, X, AlertCircle, Download }
 import { deleteItem, updateItem, createItem, issueTicket, cancelTicket, createTicketWithTransactions } from "@/actions/appwrite";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Checkbox } from "@/components/ui/checkbox"; // Will create simplified checkbox here or import
-import { useActivityLogger } from "@/lib/use-activity-logger";
+import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
 import { downloadTicketAsHTML, downloadTicketAsImage, downloadTicketAsCSV, downloadTicketAsPDF } from "@/lib/ticket-export";
 
 interface TicketType {
@@ -36,7 +36,7 @@ interface ClientTicketsPageProps {
 export default function ClientTicketsPage({ initialData, events, users, total }: ClientTicketsPageProps) {
     // Log page view
     useActivityLogger();
-    
+
     const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const [isEditOpen, setIsEditOpen] = useState(false);
     const [isIssueOpen, setIsIssueOpen] = useState(false);
@@ -73,12 +73,12 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
     // Helper function to get usernames for a ticket
     const getUsernamesForTicket = (studIds?: string[]): string => {
         if (!studIds || studIds.length === 0) return '-';
-        
+
         const usernames = studIds.map(studId => {
             const user = users.find((u: any) => u.$id === studId);
             return user?.name || user?.email?.split('@')[0] || studId;
         }).join(', ');
-        
+
         // Truncate if too long
         return usernames.length > 50 ? usernames.substring(0, 47) + '...' : usernames;
     };
@@ -120,17 +120,17 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 // If ticket has assigned users, remove ticket from their records
                 if (selectedItem.stud_id && selectedItem.stud_id.length > 0) {
                     // Find users in the current users list that are assigned to this ticket
-                    const assignedUsers = users.filter(user => 
+                    const assignedUsers = users.filter(user =>
                         selectedItem.stud_id?.includes(user.$id)
                     );
-                    
+
                     // Update each user to remove this ticket ID from their tickets array
                     for (const user of assignedUsers) {
                         if (user.tickets && Array.isArray(user.tickets)) {
                             const updatedTickets = user.tickets.filter(
                                 (ticketId: string) => ticketId !== selectedItem.$id
                             );
-                            
+
                             // Update user's tickets array
                             await updateItem('users', user.$id, {
                                 tickets: updatedTickets
@@ -138,14 +138,22 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                         }
                     }
                 }
-                
+
                 // Now delete the ticket
                 await deleteItem('tickets', selectedItem.$id);
-                
+
+                await logAdminAction({
+                    action: `Deleted ticket: ${selectedItem.team_name || selectedItem.$id}`,
+                    actionType: 'delete',
+                    resource: 'tickets',
+                    resourceid: selectedItem.$id,
+                    details: `Deleted ticket for event ${selectedItem.event_name || selectedItem.event_id}`
+                });
+
                 setMessage({ type: 'success', text: 'Ticket deleted successfully' });
                 setIsDeleteOpen(false);
                 setSelectedItem(null);
-                
+
                 // Refresh page after a short delay
                 setTimeout(() => window.location.reload(), 1000);
             } catch (error) {
@@ -163,8 +171,15 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
         const result = await issueTicket(selectedItem.$id, studentIdToIssue);
         setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
-        
+
         if (result.success) {
+            await logAdminAction({
+                action: `Issued ticket to student: ${studentIdToIssue}`,
+                actionType: 'create',
+                resource: 'tickets',
+                resourceid: selectedItem.$id,
+                details: `Issued ticket ${selectedItem.team_name || selectedItem.$id} to student ${studentIdToIssue}`
+            });
             setStudentIdToIssue('');
             setPaymentId('');
             setOrderId('');
@@ -183,8 +198,15 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
         const result = await cancelTicket(selectedItem.$id, studentIdToCancel);
         setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
-        
+
         if (result.success) {
+            await logAdminAction({
+                action: `Cancelled ticket for student: ${studentIdToCancel}`,
+                actionType: 'delete',
+                resource: 'tickets',
+                resourceid: selectedItem.$id,
+                details: `Cancelled ticket ${selectedItem.team_name || selectedItem.$id} for student ${studentIdToCancel}`
+            });
             setStudentIdToCancel('');
             setIsCancelOpen(false);
             setSelectedItem(null);
@@ -195,7 +217,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         // Validation
         if (!formData.event_id) {
             alert('Please select an event');
@@ -205,13 +227,13 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         // Process initial students for new tickets
         let studentIds: string[] = [];
         let transactionIds: string[] = [];
-        
+
         if (!selectedItem && initialStudentsInput.trim()) {
             studentIds = initialStudentsInput
                 .split(',')
                 .map(id => id.trim())
                 .filter(id => id.length > 0);
-                
+
             // Process transaction IDs if provided
             if (transactionIdsInput.trim()) {
                 transactionIds = transactionIdsInput
@@ -230,13 +252,27 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                     stud_id: Array.isArray(formData.stud_id) ? formData.stud_id : []
                 };
                 await updateItem('tickets', selectedItem.$id, dataToSave);
+                await logAdminAction({
+                    action: `Updated ticket: ${formData.team_name || selectedItem.$id}`,
+                    actionType: 'update',
+                    resource: 'tickets',
+                    resourceid: selectedItem.$id,
+                    details: `Updated ticket for event ${formData.event_id}`
+                });
                 setMessage({ type: 'success', text: 'Ticket updated successfully' });
             } else {
                 // Create new ticket with transactions
                 const result = await createTicketWithTransactions(formData, studentIds, transactionIds);
                 if (result.success) {
+                    await logAdminAction({
+                        action: `Created new ticket: ${formData.team_name || 'New Ticket'}`,
+                        actionType: 'create',
+                        resource: 'tickets',
+                        resourceid: result.ticketId,
+                        details: `Created ticket for event ${formData.event_id}`
+                    });
                     setMessage({ type: 'success', text: result.message || 'Ticket created successfully' });
-                    
+
                     // Prepare ticket data for download
                     const selectedEvent = events.find(e => e.$id === formData.event_id);
                     if (result.ticketId && selectedEvent) {
@@ -258,7 +294,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
             setFormData({});
             setInitialStudentsInput('');
             setTransactionIdsInput('');
-            
+
             // Only reload after a delay for updates, not for new creates with download
             if (selectedItem) {
                 setTimeout(() => window.location.reload(), 1500);
@@ -272,7 +308,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         const totalTickets = initialData.length;
         const activeTickets = initialData.filter(t => t.active).length;
         const inactiveTickets = totalTickets - activeTickets;
-        
+
         // Calculate total tickets issued (sum of all stud_id arrays)
         const totalIssued = initialData.reduce((sum, t) => sum + (t.stud_id?.length || 0), 0);
 
@@ -322,17 +358,17 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 for (const item of items) {
                     // If ticket has assigned users, remove ticket from their records
                     if (item.stud_id && item.stud_id.length > 0) {
-                        const assignedUsers = users.filter(user => 
+                        const assignedUsers = users.filter(user =>
                             item.stud_id?.includes(user.$id)
                         );
-                        
+
                         // Update each user to remove this ticket ID
                         for (const user of assignedUsers) {
                             if (user.tickets && Array.isArray(user.tickets)) {
                                 const updatedTickets = user.tickets.filter(
                                     (ticketId: string) => ticketId !== item.$id
                                 );
-                                
+
                                 await updateItem('users', user.$id, {
                                     tickets: updatedTickets
                                 });
@@ -340,12 +376,12 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                         }
                     }
                 }
-                
+
                 // Now delete all tickets
                 await Promise.all(items.map(item => deleteItem('tickets', item.$id)));
-                
+
                 setMessage({ type: 'success', text: `${items.length} tickets deleted successfully` });
-                
+
                 // Refresh page after a short delay
                 setTimeout(() => window.location.reload(), 1000);
             } catch (error) {
@@ -526,7 +562,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                     <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded text-sm text-blue-300">
                         Currently assigned: {selectedItem?.stud_id?.length || 0} students
                     </div>
-                    
+
                     <p className="text-xs text-gray-500 italic">* Backend logic will duplicate the Payment ID into the required transition_id field.</p>
                     <div className="flex justify-end space-x-2 pt-4">
                         <Button
@@ -744,7 +780,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                                         <Download className="h-4 w-4" />
                                         Download as HTML (Interactive)
                                     </Button>
-                                    
+
                                     <Button
                                         onClick={() => {
                                             downloadTicketAsImage(newTicketData);
@@ -757,7 +793,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                                         <Download className="h-4 w-4" />
                                         Download as Image (PNG)
                                     </Button>
-                                    
+
                                     <Button
                                         onClick={() => {
                                             downloadTicketAsCSV(newTicketData);
