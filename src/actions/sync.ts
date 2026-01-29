@@ -464,15 +464,15 @@ export async function syncSingleBatch(
         // Small collections: full sync in one go
         if (collection === 'admins') {
             const result = await syncAdminsToFirestore();
-            return { ...result, nextOffset: result.total, done: true };
+            return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
         }
         if (collection === 'iee') {
             const result = await syncIEEToFirestore();
-            return { ...result, nextOffset: result.total, done: true };
+            return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
         }
         if (collection === 'iei') {
             const result = await syncIEIToFirestore();
-            return { ...result, nextOffset: result.total, done: true };
+            return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
         }
 
         return { synced: 0, updated: 0, failed: 0, total: 0, nextOffset: 0, done: true };
