@@ -32,7 +32,7 @@ export async function login(formData: FormData) {
 
         // Compare password with bcrypt hash
         const isPasswordValid = await bcrypt.compare(password, adminUser.pass);
-        
+
         if (!isPasswordValid) {
             return { error: "Invalid credentials" };
         }
@@ -47,7 +47,7 @@ export async function login(formData: FormData) {
                 appwriteConfig.databaseId,
                 appwriteConfig.collections.admin,
                 adminUser.$id,
-                { 
+                {
                     log_in: now,
                     session_token: sessionToken
                 }
@@ -72,14 +72,12 @@ export async function login(formData: FormData) {
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production'
         });
+        return { success: true, redirectTo: "/dashboard/users" };
     } catch (error) {
         console.error("Login error:", error);
         const errorMsg = error instanceof Error ? error.message : String(error);
         return { error: `Login failed: ${errorMsg}` };
     }
-    
-    // Redirect outside try-catch to prevent catching NEXT_REDIRECT
-    redirect("/dashboard/users");
 }
 
 export async function logout() {
@@ -97,7 +95,7 @@ export async function logout() {
                 appwriteConfig.databaseId,
                 appwriteConfig.collections.admin,
                 adminId,
-                { 
+                {
                     log_out: now,
                     session_token: null
                 }
@@ -110,7 +108,7 @@ export async function logout() {
 
     // Delete the session cookie
     cookieStore.delete("admin_session");
-    
+
     redirect("/login");
 }
 
@@ -136,14 +134,14 @@ export async function getCurrentAdmin() {
             appwriteConfig.collections.admin,
             adminId
         );
-        
+
         // Verify session token matches the one in database (only if field exists)
         if (admin.session_token && admin.session_token !== sessionToken) {
             // Session invalid - admin logged in elsewhere
             cookieStore.delete("admin_session");
             return null;
         }
-        
+
         return {
             id: admin.$id,
             email: admin.email,
@@ -182,7 +180,7 @@ export async function getAdmins(fetchAll: boolean = false) {
                 appwriteConfig.collections.admin,
                 [Query.orderDesc('$createdAt'), Query.limit(limit), Query.offset(offset)]
             );
-            
+
             allDocuments.push(...response.documents);
             offset += limit;
             hasMore = response.documents.length === limit;
@@ -253,11 +251,11 @@ export async function createAdmin(formData: FormData) {
 export async function deleteAdmin(adminId: string) {
     try {
         const { databases } = await createAdminClient();
-        
+
         // Prevent deleting yourself (get current session)
         const cookieStore = await cookies();
         const currentAdminId = cookieStore.get("admin_session")?.value;
-        
+
         if (adminId === currentAdminId) {
             return { success: false, error: "Cannot delete your own admin account" };
         }

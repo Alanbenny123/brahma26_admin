@@ -214,7 +214,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         // Try to load from localStorage first
         const cachedAmounts = localStorage.getItem('razorpay_amounts_users');
         let initialAmounts = new Map<string, AmountData>();
-        
+
         if (cachedAmounts) {
             try {
                 const parsed = JSON.parse(cachedAmounts);
@@ -292,7 +292,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     const renderAmount = (user: User) => {
         const transaction = userTransactionMap.get(user.$id);
         const ticketCount = userTicketCountMap.get(user.$id) || 0;
-        
+
         // If no transaction, show that they haven't paid yet
         if (!transaction) {
             if (ticketCount === 0) {
@@ -383,18 +383,18 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
             await updateItem('transactions', selectedTransaction.$id, {
                 transition_id: transactionIdInput.trim()
             });
-            
+
             await logAdminAction({
                 action: 'Updated transaction ID',
                 actionType: 'update',
                 resource: 'transactions',
                 resourceid: selectedTransaction.$id
             });
-            
+
             setIsEditTransactionOpen(false);
             setSelectedTransaction(null);
             setTransactionIdInput('');
-            
+
             // Refresh page to show updated data
             router.refresh();
         } catch (error) {
@@ -689,43 +689,43 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                                 .filter(user => {
                                     // Search query filter only
                                     if (!searchQuery.trim()) return true;
-                                    
+
                                     const fieldValue = searchField === '$id' ? user.$id : user[searchField];
                                     if (!fieldValue) return false;
-                                    
+
                                     return String(fieldValue).toLowerCase().includes(searchQuery.toLowerCase());
                                 })
                                 .map((user) => (
-                                <tr key={user.$id} className="hover:bg-gray-800/30 transition-colors">
-                                    <td className="px-4 py-3 text-sm text-gray-300">{user.name}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-300">{user.phone || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-gray-300">{user.college || '-'}</td>
-                                    <td className="px-4 py-3 text-sm text-purple-300 font-medium">{userTicketCountMap.get(user.$id) || 0}</td>
-                                    <td className="px-4 py-3 text-sm">{renderTransactionId(user)}</td>
-                                    <td className="px-4 py-3 text-sm">{renderAmount(user)}</td>
-                                    <td className="px-4 py-3 text-sm">
-                                        <div className="flex gap-2">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 px-2 text-cyan-400 hover:text-cyan-300"
-                                                onClick={() => handleEditClick(user)}
-                                            >
-                                                Edit
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 px-2 text-red-400 hover:text-red-300"
-                                                onClick={() => handleDeleteClick(user)}
-                                            >
-                                                Delete
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
+                                    <tr key={user.$id} className="hover:bg-gray-800/30 transition-colors">
+                                        <td className="px-4 py-3 text-sm text-gray-300">{user.name}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-300">{user.phone || '-'}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-300">{user.college || '-'}</td>
+                                        <td className="px-4 py-3 text-sm text-purple-300 font-medium">{userTicketCountMap.get(user.$id) || 0}</td>
+                                        <td className="px-4 py-3 text-sm">{renderTransactionId(user)}</td>
+                                        <td className="px-4 py-3 text-sm">{renderAmount(user)}</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2 text-cyan-400 hover:text-cyan-300"
+                                                    onClick={() => handleEditClick(user)}
+                                                >
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2 text-red-400 hover:text-red-300"
+                                                    onClick={() => handleDeleteClick(user)}
+                                                >
+                                                    Delete
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
                         </tbody>
                     </table>
                 </div>

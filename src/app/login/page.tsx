@@ -22,9 +22,13 @@ export default function LoginPage() {
     async function handleSubmit(formData: FormData) {
         setError(null);
         setIsLoading(true);
-        
+
         try {
             const result = await login(formData);
+            if (result?.success && result.redirectTo) {
+                router.push(result.redirectTo);
+                return; // Prevent setting isLoading to false before navigation starts
+            }
             if (result?.error) {
                 setError(result.error);
             }
@@ -65,8 +69,8 @@ export default function LoginPage() {
                             {error && (
                                 <p className="text-red-400 text-sm text-center">{error}</p>
                             )}
-                            <Button 
-                                type="submit" 
+                            <Button
+                                type="submit"
                                 className="w-full bg-cyan-500 hover:bg-cyan-400 text-black mt-4"
                                 disabled={isLoading}
                             >
