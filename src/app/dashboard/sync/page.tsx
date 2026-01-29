@@ -16,7 +16,7 @@ export default function SyncPage() {
     const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; collection: string } | null>(null);
     const [showProductionWarning, setShowProductionWarning] = useState(false);
 
-    // Periodic sync every 15 sec (small batches to avoid 504)
+    // Periodic sync every 6 sec (small batches to avoid 504)
     const PERIODIC_COLLECTIONS = ['users', 'events', 'tickets', 'transactions', 'attendance', 'admins', 'iee', 'iei'] as const;
     const [periodicSyncEnabled, setPeriodicSyncEnabled] = useState(false);
     const [periodicProgress, setPeriodicProgress] = useState<{ collection: string; current: number; total: number; nextRunIn: number } | null>(null);
@@ -25,7 +25,7 @@ export default function SyncPage() {
     // Detect if in production (you can adjust this check)
     const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
 
-    // Periodic sync: one batch every 15 sec (works in production, avoids 504)
+    // Periodic sync: one batch every 6 sec (works in production, avoids 504)
     useEffect(() => {
         if (!periodicSyncEnabled) {
             setPeriodicProgress(null);
@@ -33,7 +33,7 @@ export default function SyncPage() {
         }
         periodicStateRef.current = { collectionIndex: 0, offset: 0 };
 
-        const BATCH_INTERVAL_MS = 15 * 1000; // 15 seconds
+        const BATCH_INTERVAL_MS = 6 * 1000; // 6 seconds
 
         const runBatch = async () => {
             const { collectionIndex, offset } = periodicStateRef.current;
@@ -41,7 +41,7 @@ export default function SyncPage() {
             const collectionLabel = collection.charAt(0).toUpperCase() + collection.slice(1);
             try {
                 const { syncSingleBatch } = await import('@/actions/sync');
-                const result = await syncSingleBatch(collection, offset, 50);
+                const result = await syncSingleBatch(collection, offset, 100);
                 if (result.error) {
                     setResults({ success: false, error: result.error });
                 }
@@ -49,7 +49,7 @@ export default function SyncPage() {
                     collection: collectionLabel,
                     current: result.nextOffset,
                     total: result.total,
-                    nextRunIn: 15,
+                    nextRunIn: 6,
                 });
                 if (result.done) {
                     if (collectionIndex >= PERIODIC_COLLECTIONS.length - 1) {
@@ -372,15 +372,15 @@ export default function SyncPage() {
                 </CardContent>
             </Card>
 
-            {/* Periodic sync every 15 sec (avoids 504 in production) */}
+            {/* Periodic sync every 6 sec (avoids 504 in production) */}
             <Card className="glass-card border-emerald-500/50 bg-emerald-500/5">
                 <CardHeader>
                     <CardTitle className="text-xl text-emerald-400 flex items-center gap-2">
                         <Timer className="w-5 h-5" />
-                        Periodic Sync (every 15 sec)
+                        Periodic Sync (every 6 sec)
                     </CardTitle>
                     <p className="text-white/60 text-sm">
-                        Syncs 50 records every 15 seconds to avoid 504 timeouts. Safe to use in production. Cycles through all collections.
+                        Syncs 100 records every 6 seconds to avoid 504 timeouts. Safe to use in production. Cycles through all collections.
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
