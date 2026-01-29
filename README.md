@@ -18,7 +18,6 @@ NEXT_PUBLIC_APPWRITE_ENDPOINT=https://cloud.appwrite.io/v1
 NEXT_PUBLIC_APPWRITE_PROJECT_ID=your_project_id
 NEXT_PUBLIC_APPWRITE_DATABASE_ID=your_database_id
 APPWRITE_API_KEY=your_api_key
-
 # Appwrite Collections
 NEXT_PUBLIC_APPWRITE_COLLECTION_USERS=your_users_collection_id
 NEXT_PUBLIC_APPWRITE_COLLECTION_EVENTS=your_events_collection_id
