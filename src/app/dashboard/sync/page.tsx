@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,70 @@ export default function SyncPage() {
     const [lastSyncTime, setLastSyncTime] = useState<string>('');
     const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; collection: string } | null>(null);
     const [showProductionWarning, setShowProductionWarning] = useState(false);
+
+    // Periodic sync every 15 sec (small batches to avoid 504)
+    const PERIODIC_COLLECTIONS = ['users', 'events', 'tickets', 'transactions', 'attendance', 'admins', 'iee', 'iei'] as const;
+    const [periodicSyncEnabled, setPeriodicSyncEnabled] = useState(false);
+    const [periodicProgress, setPeriodicProgress] = useState<{ collection: string; current: number; total: number; nextRunIn: number } | null>(null);
+    const periodicStateRef = useRef({ collectionIndex: 0, offset: 0 });
     
     // Detect if in production (you can adjust this check)
     const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
+
+    // Periodic sync: one batch every 15 sec (works in production, avoids 504)
+    useEffect(() => {
+        if (!periodicSyncEnabled) {
+            setPeriodicProgress(null);
+            return;
+        }
+        periodicStateRef.current = { collectionIndex: 0, offset: 0 };
+
+        const BATCH_INTERVAL_MS = 15 * 1000; // 15 seconds
+
+        const runBatch = async () => {
+            const { collectionIndex, offset } = periodicStateRef.current;
+            const collection = PERIODIC_COLLECTIONS[collectionIndex];
+            const collectionLabel = collection.charAt(0).toUpperCase() + collection.slice(1);
+            try {
+                const { syncSingleBatch } = await import('@/actions/sync');
+                const result = await syncSingleBatch(collection, offset, 50);
+                if (result.error) {
+                    setResults({ success: false, error: result.error });
+                }
+                setPeriodicProgress({
+                    collection: collectionLabel,
+                    current: result.nextOffset,
+                    total: result.total,
+                    nextRunIn: 15,
+                });
+                if (result.done) {
+                    if (collectionIndex >= PERIODIC_COLLECTIONS.length - 1) {
+                        periodicStateRef.current = { collectionIndex: 0, offset: 0 };
+                    } else {
+                        periodicStateRef.current = { collectionIndex: collectionIndex + 1, offset: 0 };
+                    }
+                } else {
+                    periodicStateRef.current = { collectionIndex, offset: result.nextOffset };
+                }
+            } catch (e) {
+                console.error('Periodic sync batch error:', e);
+                setResults({ success: false, error: 'Periodic sync batch failed' });
+            }
+        };
+
+        runBatch();
+        const interval = setInterval(runBatch, BATCH_INTERVAL_MS);
+        return () => clearInterval(interval);
+    }, [periodicSyncEnabled]);
+
+    // Countdown "Next batch in Xs" for periodic sync
+    useEffect(() => {
+        if (!periodicSyncEnabled || !periodicProgress) return;
+        const t = setInterval(() => {
+            setPeriodicProgress(prev => prev ? { ...prev, nextRunIn: Math.max(0, prev.nextRunIn - 1) } : null);
+        }, 1000);
+        return () => clearInterval(t);
+    }, [periodicSyncEnabled, periodicProgress?.collection]);
 
     // Auto-sync timer
     useEffect(() => {
@@ -305,6 +366,53 @@ export default function SyncPage() {
                             <div className="flex items-center gap-2 text-amber-400 text-sm">
                                 <span>⚠️</span>
                                 <p>Auto-sync will run in this browser tab. Keep the tab open for continuous syncing.</p>
+                            </div>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Periodic sync every 15 sec (avoids 504 in production) */}
+            <Card className="glass-card border-emerald-500/50 bg-emerald-500/5">
+                <CardHeader>
+                    <CardTitle className="text-xl text-emerald-400 flex items-center gap-2">
+                        <Timer className="w-5 h-5" />
+                        Periodic Sync (every 15 sec)
+                    </CardTitle>
+                    <p className="text-white/60 text-sm">
+                        Syncs 50 records every 15 seconds to avoid 504 timeouts. Safe to use in production. Cycles through all collections.
+                    </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <p className="text-white/80 font-medium">Enable periodic sync</p>
+                            <p className="text-white/50 text-sm">Runs in this tab; keep it open for continuous sync.</p>
+                        </div>
+                        <Button
+                            onClick={() => {
+                                setPeriodicSyncEnabled(!periodicSyncEnabled);
+                                if (periodicSyncEnabled) setPeriodicProgress(null);
+                            }}
+                            variant={periodicSyncEnabled ? "default" : "outline"}
+                            className={periodicSyncEnabled ? "bg-emerald-500 hover:bg-emerald-400" : ""}
+                        >
+                            {periodicSyncEnabled ? 'On' : 'Off'}
+                        </Button>
+                    </div>
+                    {periodicSyncEnabled && periodicProgress && (
+                        <div className="grid grid-cols-2 gap-4 p-4 bg-white/5 rounded-lg">
+                            <div>
+                                <p className="text-xs text-white/50 mb-1">Current collection</p>
+                                <p className="text-sm text-emerald-300 font-medium">{periodicProgress.collection}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs text-white/50 mb-1">Progress</p>
+                                <p className="text-sm text-white/80 font-mono">{periodicProgress.current} / {periodicProgress.total || '—'}</p>
+                            </div>
+                            <div className="col-span-2">
+                                <p className="text-xs text-white/50 mb-1">Next batch in</p>
+                                <p className="text-sm text-emerald-300 font-mono">{periodicProgress.nextRunIn}s</p>
                             </div>
                         </div>
                     )}

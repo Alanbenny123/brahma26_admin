@@ -328,6 +328,168 @@ export async function syncAttendanceToFirestore() {
     }
 }
 
+/** Sync a single batch (offset/limit) for periodic 15s sync - avoids 504 timeout */
+export type SyncCollection = 'users' | 'events' | 'tickets' | 'transactions' | 'attendance' | 'admins' | 'iee' | 'iei';
+
+export async function syncSingleBatch(
+    collection: SyncCollection,
+    offset: number,
+    limit: number = 50
+): Promise<{ synced: number; updated: number; failed: number; total: number; nextOffset: number; done: boolean; error?: string }> {
+    try {
+        if (collection === 'users') {
+            const { documents: batch, total } = await getUsers(false, { limit, offset });
+            let synced = 0, updated = 0, failed = 0;
+            for (const user of batch) {
+                const userData = {
+                    appwriteId: user.$id,
+                    stud_id: user.$id,
+                    name: user.name || '',
+                    email: user.email || '',
+                    phone: user.phone || '',
+                    college: user.college || '',
+                    pass: user.pass || '',
+                    certificates: user.certificates || [],
+                    createdAt: user.$createdAt,
+                };
+                const result = await upsertFirestoreUser(userData);
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else failed++;
+            }
+            const nextOffset = offset + batch.length;
+            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
+        }
+
+        if (collection === 'events') {
+            const { documents: batch, total } = await getEvents(false, { limit, offset });
+            let synced = 0, updated = 0, failed = 0;
+            for (const event of batch) {
+                const eventData = {
+                    appwriteId: event.$id,
+                    event_id: event.$id,
+                    event_name: event.event_name || '',
+                    venue: event.venue || '',
+                    time: event.time || '',
+                    amount: event.amount || '0',
+                    slots: event.slots || 0,
+                    category: event.category || 'General',
+                    fest: event.fest || '',
+                    event_pass: event.event_pass || '',
+                    date: event.date || '',
+                    winners: event.winners || [],
+                    coordinator: event.coordinator || [],
+                    completed: event.completed || false,
+                    poster: event.poster || '',
+                    event_rules: event.event_rules || '',
+                    details: event.details || '',
+                    phone_number: event.phone_number || '',
+                    createdAt: event.$createdAt,
+                };
+                const result = await upsertFirestoreEvent(eventData);
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else failed++;
+            }
+            const nextOffset = offset + batch.length;
+            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
+        }
+
+        if (collection === 'tickets') {
+            const { documents: batch, total } = await getTickets(false, { limit, offset });
+            let synced = 0, updated = 0, failed = 0;
+            for (const ticket of batch) {
+                const ticketData = {
+                    appwriteId: ticket.$id,
+                    user_id_appwrite: ticket.user_id || '',
+                    event_id_appwrite: ticket.event_id || '',
+                    ticket_number: ticket.ticket_number || '',
+                    status: ticket.status || '',
+                    createdAt: ticket.$createdAt,
+                };
+                const result = await upsertFirestoreTicket(ticketData);
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else failed++;
+            }
+            const nextOffset = offset + batch.length;
+            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
+        }
+
+        if (collection === 'transactions') {
+            const { documents: batch, total } = await getTransactions(false, { limit, offset });
+            let synced = 0, updated = 0, failed = 0;
+            for (const transaction of batch) {
+                const transactionData = {
+                    appwriteId: transaction.$id,
+                    transition_id: transaction.transition_id || '',
+                    user_id_appwrite: transaction.user_id || '',
+                    ticket_id_appwrite: transaction.ticket_id || '',
+                    createdAt: transaction.$createdAt,
+                };
+                const result = await upsertFirestoreTransaction(transactionData);
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else failed++;
+            }
+            const nextOffset = offset + batch.length;
+            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
+        }
+
+        if (collection === 'attendance') {
+            const { documents: batch, total } = await getAttendance(false, { limit, offset });
+            let synced = 0, updated = 0, failed = 0;
+            for (const attendance of batch) {
+                const attendanceData = {
+                    appwriteId: attendance.$id,
+                    user_id_appwrite: attendance.user_id || '',
+                    event_id_appwrite: attendance.event_id || '',
+                    checked_in: attendance.checked_in || false,
+                    timestamp: attendance.timestamp || attendance.$createdAt,
+                };
+                const result = await upsertFirestoreAttendance(attendanceData);
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else failed++;
+            }
+            const nextOffset = offset + batch.length;
+            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
+        }
+
+        // Small collections: full sync in one go
+        if (collection === 'admins') {
+            const result = await syncAdminsToFirestore();
+            return { ...result, nextOffset: result.total, done: true };
+        }
+        if (collection === 'iee') {
+            const result = await syncIEEToFirestore();
+            return { ...result, nextOffset: result.total, done: true };
+        }
+        if (collection === 'iei') {
+            const result = await syncIEIToFirestore();
+            return { ...result, nextOffset: result.total, done: true };
+        }
+
+        return { synced: 0, updated: 0, failed: 0, total: 0, nextOffset: 0, done: true };
+    } catch (error) {
+        console.error('Error syncing batch:', error);
+        return {
+            synced: 0,
+            updated: 0,
+            failed: 0,
+            total: 0,
+            nextOffset: offset,
+            done: false,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
+}
+
 // Sync single item by ID and type
 export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'transactions' | 'attendance', appwriteId: string) {
     try {
