@@ -78,133 +78,179 @@ export async function syncAllToFirebase() {
 }
 
 // Sync Users to Firestore (with upsert - no duplicates)
-export async function syncUsersToFirestore() {
+export async function syncUsersToFirestore(batchSize: number = 50, onProgress?: (progress: number, total: number) => void) {
     try {
-        const { documents: appwriteUsers } = await getUsers();
+        const { documents: appwriteUsers } = await getUsers(true); // Fetch all
 
         let synced = 0;
         let updated = 0;
         let failed = 0;
+        const total = appwriteUsers.length;
 
-        for (const user of appwriteUsers) {
-            // Clean Appwrite metadata and use stud_id (user.$id)
-            const userData = {
-                appwriteId: user.$id,
-                stud_id: user.$id, // Appwrite user ID
-                name: user.name || '',
-                email: user.email || '',
-                phone: user.phone || '',
-                college: user.college || '',
-                pass: user.pass || '',
-                certificates: user.certificates || [],
-                createdAt: user.$createdAt,
-            };
+        // Process in batches to avoid timeout
+        for (let i = 0; i < appwriteUsers.length; i += batchSize) {
+            const batch = appwriteUsers.slice(i, i + batchSize);
+            
+            // Process batch in parallel
+            const batchPromises = batch.map(async (user) => {
+                const userData = {
+                    appwriteId: user.$id,
+                    stud_id: user.$id,
+                    name: user.name || '',
+                    email: user.email || '',
+                    phone: user.phone || '',
+                    college: user.college || '',
+                    pass: user.pass || '',
+                    certificates: user.certificates || [],
+                    createdAt: user.$createdAt,
+                };
 
-            const result = await upsertFirestoreUser(userData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
+                return await upsertFirestoreUser(userData);
+            });
+
+            const results = await Promise.all(batchPromises);
+            
+            results.forEach(result => {
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else {
+                    failed++;
                 }
-            } else {
-                failed++;
+            });
+
+            // Report progress
+            const processed = Math.min(i + batchSize, total);
+            if (onProgress) {
+                onProgress(processed, total);
             }
+            
+            console.log(`✅ Synced users batch: ${processed}/${total}`);
         }
 
-        return { synced, updated, failed, total: appwriteUsers.length };
+        return { synced, updated, failed, total };
     } catch (error) {
         console.error('Error syncing users:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync users' };
+        return { synced: 0, updated: 0, failed: 0, total: 0, error: 'Failed to sync users' };
     }
 }
 
 // Sync Events to Firestore (with upsert - no duplicates)
-export async function syncEventsToFirestore() {
+export async function syncEventsToFirestore(batchSize: number = 50, onProgress?: (progress: number, total: number) => void) {
     try {
-        const { documents: appwriteEvents } = await getEvents();
+        const { documents: appwriteEvents } = await getEvents(true);
 
         let synced = 0;
         let updated = 0;
         let failed = 0;
+        const total = appwriteEvents.length;
 
-        for (const event of appwriteEvents) {
-            const eventData = {
-                appwriteId: event.$id,
-                event_id: event.$id,
-                event_name: event.event_name || '',
-                venue: event.venue || '',
-                time: event.time || '',
-                amount: event.amount || '0',
-                slots: event.slots || 0,
-                category: event.category || 'General',
-                fest: event.fest || '',
-                event_pass: event.event_pass || '',
-                date: event.date || '',
-                winners: event.winners || [],
-                coordinator: event.coordinator || [],
-                completed: event.completed || false,
-                poster: event.poster || '',
-                event_rules: event.event_rules || '',
-                details: event.details || '',
-                phone_number: event.phone_number || '',
-                createdAt: event.$createdAt,
-            };
+        // Process in batches
+        for (let i = 0; i < appwriteEvents.length; i += batchSize) {
+            const batch = appwriteEvents.slice(i, i + batchSize);
+            
+            const batchPromises = batch.map(async (event) => {
+                const eventData = {
+                    appwriteId: event.$id,
+                    event_id: event.$id,
+                    event_name: event.event_name || '',
+                    venue: event.venue || '',
+                    time: event.time || '',
+                    amount: event.amount || '0',
+                    slots: event.slots || 0,
+                    category: event.category || 'General',
+                    fest: event.fest || '',
+                    event_pass: event.event_pass || '',
+                    date: event.date || '',
+                    winners: event.winners || [],
+                    coordinator: event.coordinator || [],
+                    completed: event.completed || false,
+                    poster: event.poster || '',
+                    event_rules: event.event_rules || '',
+                    details: event.details || '',
+                    phone_number: event.phone_number || '',
+                    createdAt: event.$createdAt,
+                };
 
-            const result = await upsertFirestoreEvent(eventData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
+                return await upsertFirestoreEvent(eventData);
+            });
+
+            const results = await Promise.all(batchPromises);
+            
+            results.forEach(result => {
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else {
+                    failed++;
                 }
-            } else {
-                failed++;
+            });
+
+            const processed = Math.min(i + batchSize, total);
+            if (onProgress) {
+                onProgress(processed, total);
             }
+            
+            console.log(`✅ Synced events batch: ${processed}/${total}`);
         }
 
-        return { synced, updated, failed, total: appwriteEvents.length };
+        return { synced, updated, failed, total };
     } catch (error) {
         console.error('Error syncing events:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync events' };
+        return { synced: 0, updated: 0, failed: 0, total: 0, error: 'Failed to sync events' };
     }
 }
 
 // Sync Tickets to Firestore (with upsert - no duplicates)
-export async function syncTicketsToFirestore() {
+export async function syncTicketsToFirestore(batchSize: number = 50, onProgress?: (progress: number, total: number) => void) {
     try {
-        const { documents: appwriteTickets } = await getTickets();
+        const { documents: appwriteTickets } = await getTickets(true);
 
         let synced = 0;
         let updated = 0;
         let failed = 0;
+        const total = appwriteTickets.length;
 
-        for (const ticket of appwriteTickets) {
-            const ticketData = {
-                appwriteId: ticket.$id,
-                user_id_appwrite: ticket.user_id || '', // Appwrite user ID - will be mapped to Firebase user doc ID
-                event_id_appwrite: ticket.event_id || '', // Appwrite event ID - will be mapped to Firebase event doc ID
-                ticket_number: ticket.ticket_number || '',
-                status: ticket.status || '',
-                createdAt: ticket.$createdAt,
-            };
+        // Process in batches
+        for (let i = 0; i < appwriteTickets.length; i += batchSize) {
+            const batch = appwriteTickets.slice(i, i + batchSize);
+            
+            const batchPromises = batch.map(async (ticket) => {
+                const ticketData = {
+                    appwriteId: ticket.$id,
+                    user_id_appwrite: ticket.user_id || '',
+                    event_id_appwrite: ticket.event_id || '',
+                    ticket_number: ticket.ticket_number || '',
+                    status: ticket.status || '',
+                    createdAt: ticket.$createdAt,
+                };
 
-            const result = await upsertFirestoreTicket(ticketData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
+                return await upsertFirestoreTicket(ticketData);
+            });
+
+            const results = await Promise.all(batchPromises);
+            
+            results.forEach(result => {
+                if (result.success) {
+                    if (result.action === 'created') synced++;
+                    else if (result.action === 'updated') updated++;
+                } else {
+                    failed++;
                 }
-            } else {
-                failed++;
+            });
+
+            const processed = Math.min(i + batchSize, total);
+            if (onProgress) {
+                onProgress(processed, total);
             }
+            
+            console.log(`✅ Synced tickets batch: ${processed}/${total}`);
         }
 
-        return { synced, updated, failed, total: appwriteTickets.length };
+        return { synced, updated, failed, total };
     } catch (error) {
         console.error('Error syncing tickets:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync tickets' };
+        return { synced: 0, updated: 0, failed: 0, total: 0, error: 'Failed to sync tickets' };
     }
 }
 

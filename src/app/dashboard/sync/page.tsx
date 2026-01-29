@@ -13,6 +13,11 @@ export default function SyncPage() {
     const [syncInterval, setSyncInterval] = useState(30); // minutes
     const [nextSyncTime, setNextSyncTime] = useState<string>('');
     const [lastSyncTime, setLastSyncTime] = useState<string>('');
+    const [syncProgress, setSyncProgress] = useState<{ current: number; total: number; collection: string } | null>(null);
+    const [showProductionWarning, setShowProductionWarning] = useState(false);
+    
+    // Detect if in production (you can adjust this check)
+    const isProduction = typeof window !== 'undefined' && window.location.hostname !== 'localhost';
 
     // Auto-sync timer
     useEffect(() => {
@@ -39,8 +44,14 @@ export default function SyncPage() {
     }, [autoSyncEnabled, syncInterval]);
 
     const handleSyncAll = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
+        
         setSyncing(true);
         setResults(null);
+        setSyncProgress(null);
         
         try {
             const { syncAllToFirebase } = await import('@/actions/sync');
@@ -52,6 +63,7 @@ export default function SyncPage() {
             setResults({ success: false, error: 'Sync failed' });
         } finally {
             setSyncing(false);
+            setSyncProgress(null);
         }
     };
 
@@ -64,45 +76,79 @@ export default function SyncPage() {
     };
 
     const handleSyncUsers = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
+        
         setSyncing(true);
+        setSyncProgress(null);
         try {
             const { syncUsersToFirestore } = await import('@/actions/sync');
-            const result = await syncUsersToFirestore();
+            const result = await syncUsersToFirestore(50, (current, total) => {
+                setSyncProgress({ current, total, collection: 'Users' });
+            });
             setResults({ success: true, results: { users: result } });
+            setSyncProgress(null);
         } catch (error) {
             setResults({ success: false, error: 'Failed to sync users' });
+            setSyncProgress(null);
         } finally {
             setSyncing(false);
         }
     };
 
     const handleSyncEvents = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
+        
         setSyncing(true);
+        setSyncProgress(null);
         try {
             const { syncEventsToFirestore } = await import('@/actions/sync');
-            const result = await syncEventsToFirestore();
+            const result = await syncEventsToFirestore(50, (current, total) => {
+                setSyncProgress({ current, total, collection: 'Events' });
+            });
             setResults({ success: true, results: { events: result } });
+            setSyncProgress(null);
         } catch (error) {
             setResults({ success: false, error: 'Failed to sync events' });
+            setSyncProgress(null);
         } finally {
             setSyncing(false);
         }
     };
 
     const handleSyncTickets = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
+        
         setSyncing(true);
+        setSyncProgress(null);
         try {
             const { syncTicketsToFirestore } = await import('@/actions/sync');
-            const result = await syncTicketsToFirestore();
+            const result = await syncTicketsToFirestore(50, (current, total) => {
+                setSyncProgress({ current, total, collection: 'Tickets' });
+            });
             setResults({ success: true, results: { tickets: result } });
+            setSyncProgress(null);
         } catch (error) {
             setResults({ success: false, error: 'Failed to sync tickets' });
+            setSyncProgress(null);
         } finally {
             setSyncing(false);
         }
     };
 
     const handleSyncTransactions = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
         setSyncing(true);
         try {
             const { syncTransactionsToFirestore } = await import('@/actions/sync');
@@ -116,6 +162,10 @@ export default function SyncPage() {
     };
 
     const handleSyncAttendance = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
         setSyncing(true);
         try {
             const { syncAttendanceToFirestore } = await import('@/actions/sync');
@@ -129,6 +179,10 @@ export default function SyncPage() {
     };
 
     const handleSyncAdmins = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
         setSyncing(true);
         try {
             const { syncAdminsToFirestore } = await import('@/actions/sync');
@@ -142,6 +196,10 @@ export default function SyncPage() {
     };
 
     const handleSyncIEE = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
         setSyncing(true);
         try {
             const { syncIEEToFirestore } = await import('@/actions/sync');
@@ -155,6 +213,10 @@ export default function SyncPage() {
     };
 
     const handleSyncIEI = async () => {
+        if (isProduction) {
+            setShowProductionWarning(true);
+            return;
+        }
         setSyncing(true);
         try {
             const { syncIEIToFirestore } = await import('@/actions/sync');
@@ -249,11 +311,62 @@ export default function SyncPage() {
                 </CardContent>
             </Card>
 
+            {/* Production Warning */}
+            {isProduction && (
+                <Card className="glass-card border-amber-500/50 bg-amber-500/10">
+                    <CardContent className="p-6">
+                        <div className="flex items-start gap-4">
+                            <div className="text-amber-400 text-3xl">⚠️</div>
+                            <div className="flex-1">
+                                <h3 className="text-amber-400 font-bold text-lg mb-2">Production Environment Detected</h3>
+                                <p className="text-amber-200 mb-3">
+                                    Manual sync is disabled in production to prevent timeouts and performance issues.
+                                </p>
+                                <ul className="text-amber-200/80 text-sm space-y-1 list-disc list-inside">
+                                    <li>Real-time sync is automatically handling all changes</li>
+                                    <li>Each Appwrite change syncs to Firebase instantly</li>
+                                    <li>For initial bulk sync, run locally with <code className="bg-amber-900/30 px-2 py-1 rounded">npm run dev</code></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
+            {/* Progress Bar */}
+            {syncProgress && (
+                <Card className="glass-card border-cyan-500/50 bg-cyan-500/10">
+                    <CardContent className="p-6">
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <span className="text-cyan-400 font-medium">Syncing {syncProgress.collection}...</span>
+                                <span className="text-cyan-300 text-sm">
+                                    {syncProgress.current} / {syncProgress.total}
+                                </span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                                <div 
+                                    className="bg-gradient-to-r from-cyan-500 to-blue-500 h-full transition-all duration-300 rounded-full"
+                                    style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
+                                />
+                            </div>
+                            <p className="text-cyan-200 text-xs">
+                                Processing in batches of 50 records...
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Manual Sync Controls */}
-            <Card className="glass-card border-white/10">
+            <Card className={`glass-card border-white/10 ${isProduction ? 'opacity-50 pointer-events-none' : ''}`}>
                 <CardHeader>
                     <CardTitle className="text-xl text-white/90">Manual Sync (One-time)</CardTitle>
-                    <p className="text-white/60 text-sm">Use these to sync existing data from Appwrite to Firebase</p>
+                    <p className="text-white/60 text-sm">
+                        {isProduction 
+                            ? '⚠️ Disabled in production - Use local development for manual sync' 
+                            : 'Use these to sync existing data from Appwrite to Firebase'}
+                    </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -497,10 +610,19 @@ export default function SyncPage() {
                     <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 mt-4">
                         <p className="text-amber-400 font-medium">💡 Recommended Workflow:</p>
                         <ol className="list-decimal list-inside space-y-1 mt-2 ml-2">
-                            <li>Run "Sync All Data" once to sync existing data</li>
-                            <li>Enable auto-sync for periodic synchronization</li>
-                            <li>Use individual sync buttons for specific collections as needed</li>
+                            <li>Run manual sync ONLY in development (localhost)</li>
+                            <li>Production uses automatic real-time sync (no manual sync needed)</li>
+                            <li>Batch processing syncs 50 records at a time to prevent timeouts</li>
+                            <li>Monitor progress bar during sync operations</li>
                         </ol>
+                    </div>
+                    
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 mt-4">
+                        <p className="text-green-400 font-medium">✅ Real-time Sync Status:</p>
+                        <p className="text-green-200 text-sm mt-2">
+                            Your application automatically syncs all Appwrite changes to Firebase in real-time. 
+                            Manual sync is only needed for initial setup or data recovery.
+                        </p>
                     </div>
                 </CardContent>
             </Card>
