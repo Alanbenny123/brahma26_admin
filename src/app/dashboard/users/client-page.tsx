@@ -5,11 +5,11 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { deleteFirestoreUser, updateFirestoreUser, createFirestoreUser, updateFirestoreTransaction } from "@/actions/firebase";
+import { deleteFirestoreUser, updateFirestoreUser, createFirestoreUser, updateFirestoreTransaction, getFirestoreTicketsByUser, getFirestoreCertificatesByUser } from "@/actions/firebase";
 import { useRouter } from "next/navigation";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
-import { Users as UsersIcon, BarChart3, Plus, Loader2, IndianRupee, RefreshCw, Download } from "lucide-react";
+import { Users as UsersIcon, BarChart3, Plus, Loader2, IndianRupee, RefreshCw, Download, Ticket, Award } from "lucide-react";
 import bcrypt from "bcryptjs";
 import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
 import { fetchPaymentDetails } from "@/actions/razorpay";
@@ -83,6 +83,28 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     const [amounts, setAmounts] = useState<Map<string, AmountData>>(new Map());
     const [isFetchingAll, setIsFetchingAll] = useState(false);
 
+    // Tickets/Certificates profile modal
+    const [isTicketsOpen, setIsTicketsOpen] = useState(false);
+    const [ticketsUser, setTicketsUser] = useState<User | null>(null);
+    const [userTickets, setUserTickets] = useState<any[]>([]);
+    const [userCerts, setUserCerts] = useState<any[]>([]);
+    const [loadingTickets, setLoadingTickets] = useState(false);
+
+    const handleViewTickets = async (user: User) => {
+        setTicketsUser(user);
+        setIsTicketsOpen(true);
+        setLoadingTickets(true);
+        setUserTickets([]);
+        setUserCerts([]);
+        const [ticketsRes, certsRes] = await Promise.all([
+            getFirestoreTicketsByUser(user.$id),
+            getFirestoreCertificatesByUser(user.$id),
+        ]);
+        setUserTickets(ticketsRes.tickets || []);
+        setUserCerts((certsRes as any).certs || []);
+        setLoadingTickets(false);
+    };
+
     // Overview State
     const [isOverviewOpen, setIsOverviewOpen] = useState(false);
     const [overviewData, setOverviewData] = useState<{
@@ -91,7 +113,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         report: string;
     }>({ metrics: [], chartData: [], report: '' });
 
-    // Create a map of user ID to their transaction
+    // Create a map of user ID to their transaction (if transactions were loaded)
     const userTransactionMap = new Map<string, Transaction>();
     transactions.forEach((t) => {
         if (t.stud_id) {
@@ -99,34 +121,11 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         }
     });
 
-    // Create a map of user ID to count of tickets they're assigned to
-    const userTicketCountMap = new Map<string, number>();
-    tickets.forEach((ticket) => {
-        if (ticket.stud_id && Array.isArray(ticket.stud_id)) {
-            ticket.stud_id.forEach((studentId) => {
-                userTicketCountMap.set(studentId, (userTicketCountMap.get(studentId) || 0) + 1);
-            });
-        }
-    });
+    // Ticket count comes from user.tickets array directly (populated by import)
+    // No need to scan thousands of ticket documents
 
-    // Create lookup maps for fallback pricing
-    const ticketMap = new Map<string, Ticket>();
-    tickets.forEach((t) => ticketMap.set(t.$id, t));
-
-    const eventMap = new Map<string, Event>();
-    events.forEach((e) => eventMap.set(e.$id, e));
-
-    // Helper: Get event price from transaction -> ticket -> event chain
-    const getEventPrice = (transaction: Transaction): number | null => {
-        if (!transaction.ticket_id) return null;
-        const ticket = ticketMap.get(transaction.ticket_id);
-        if (!ticket) return null;
-        const event = eventMap.get(ticket.event_id);
-        if (!event) return null;
-        // Extract numeric amount from strings like "300 per team", "500/-"
-        const match = event.amount.match(/[0-9.]+/);
-        return match ? parseFloat(match[0]) : null;
-    };
+    // getEventPrice is no longer used (tickets/events not pre-fetched)
+    const getEventPrice = (_transaction: Transaction): number | null => null;
 
     // Fetch amount for a single user from Razorpay
     const fetchAmount = async (userId: string, paymentId: string) => {
@@ -291,7 +290,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
     // Custom render function for the amount column
     const renderAmount = (user: User) => {
         const transaction = userTransactionMap.get(user.$id);
-        const ticketCount = userTicketCountMap.get(user.$id) || 0;
+        const ticketCount = (user.tickets?.length) || 0;
 
         // If no transaction, show that they haven't paid yet
         if (!transaction) {
@@ -701,11 +700,21 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                                         <td className="px-4 py-3 text-sm text-gray-300">{user.email}</td>
                                         <td className="px-4 py-3 text-sm text-gray-300">{user.phone || '-'}</td>
                                         <td className="px-4 py-3 text-sm text-gray-300">{user.college || '-'}</td>
-                                        <td className="px-4 py-3 text-sm text-purple-300 font-medium">{userTicketCountMap.get(user.$id) || 0}</td>
+                                        <td className="px-4 py-3 text-sm text-purple-300 font-medium">{user.tickets?.length || 0}</td>
                                         <td className="px-4 py-3 text-sm">{renderTransactionId(user)}</td>
                                         <td className="px-4 py-3 text-sm">{renderAmount(user)}</td>
                                         <td className="px-4 py-3 text-sm">
                                             <div className="flex gap-2">
+                                                <Button
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2 text-purple-400 hover:text-purple-300"
+                                                    onClick={() => handleViewTickets(user)}
+                                                    title="View tickets & certificates"
+                                                >
+                                                    <Ticket className="w-3 h-3 mr-1" />
+                                                    Tickets
+                                                </Button>
                                                 <Button
                                                     size="sm"
                                                     variant="ghost"
@@ -856,6 +865,82 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                             Save
                         </Button>
                     </div>
+                </div>
+            </Modal>
+
+            {/* Tickets & Certificates Modal */}
+            <Modal
+                isOpen={isTicketsOpen}
+                onClose={() => setIsTicketsOpen(false)}
+                title={`Tickets & Certificates — ${ticketsUser?.name || ''}`}
+            >
+                <div className="space-y-4 mt-2 max-h-[70vh] overflow-y-auto pr-1">
+                    {loadingTickets ? (
+                        <div className="flex items-center justify-center py-8">
+                            <Loader2 className="w-6 h-6 animate-spin text-cyan-400 mr-2" />
+                            <span className="text-white/60">Fetching data...</span>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Tickets / Event Registrations */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-cyan-400 mb-2 flex items-center gap-2">
+                                    <Ticket className="w-4 h-4" />
+                                    Event Registrations ({userTickets.length})
+                                </h3>
+                                {userTickets.length === 0 ? (
+                                    <p className="text-white/40 text-sm py-2">No tickets found for this user.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {userTickets.map((t: any) => (
+                                            <div key={t.id} className="bg-white/5 rounded-lg p-3 border border-white/10">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <div>
+                                                        <p className="text-white/90 font-medium text-sm">{t.event_name || 'Unknown Event'}</p>
+                                                        <p className="text-white/50 text-xs mt-0.5">{t.fest || ''}</p>
+                                                    </div>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full ${t.active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
+                                                        {t.active ? 'Active' : 'Cancelled'}
+                                                    </span>
+                                                </div>
+                                                <p className="text-white/30 text-xs mt-1 font-mono">Ticket: {t.id}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Certificates */}
+                            <div>
+                                <h3 className="text-sm font-semibold text-yellow-400 mb-2 flex items-center gap-2">
+                                    <Award className="w-4 h-4" />
+                                    Certificates ({userCerts.length})
+                                </h3>
+                                {userCerts.length === 0 ? (
+                                    <p className="text-white/40 text-sm py-2">No certificates uploaded for this user.</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {userCerts.map((c: any) => (
+                                            <div key={c.id} className="bg-yellow-500/5 rounded-lg p-3 border border-yellow-500/20 flex items-center justify-between gap-3">
+                                                <div>
+                                                    <p className="text-white/80 text-sm font-medium">Certificate</p>
+                                                    <p className="text-white/40 text-xs">{c.uploadedAt ? new Date(c.uploadedAt).toLocaleDateString() : ''}</p>
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => window.open(c.url, '_blank')}
+                                                    className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 border border-yellow-500/30"
+                                                >
+                                                    <Download className="w-3 h-3 mr-1" />
+                                                    Download
+                                                </Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
             </Modal>
         </div>

@@ -1174,6 +1174,43 @@ export async function deleteFirestoreIEI(id: string) {
 }
 
 // Upsert IEI (Create or Update) - Uses Appwrite ID as Firebase document ID
+/** Get all tickets belonging to a specific student (stud_id array contains userId) */
+export async function getFirestoreTicketsByUser(userId: string) {
+    try {
+        const ticketsRef = collection(db, 'tickets');
+        const q = query(ticketsRef, where('stud_id', 'array-contains', userId));
+        const snapshot = await getDocs(q);
+        const tickets = snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            createdAt: d.data().createdAt?.toDate?.()?.toISOString() || null,
+            updatedAt: d.data().updatedAt?.toDate?.()?.toISOString() || null,
+        }));
+        return { success: true, tickets };
+    } catch (error) {
+        console.error('Error fetching tickets by user:', error);
+        return { success: false, tickets: [], error: 'Failed to fetch tickets' };
+    }
+}
+
+/** Get all certificates linked to a specific userId */
+export async function getFirestoreCertificatesByUser(userId: string) {
+    try {
+        const certsRef = collection(db, 'certificates');
+        const q = query(certsRef, where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        const certs = snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data(),
+            uploadedAt: d.data().uploadedAt?.toDate?.()?.toISOString() || null,
+        }));
+        return { success: true, certs };
+    } catch (error) {
+        console.error('Error fetching certificates by user:', error);
+        return { success: false, certs: [], error: 'Failed to fetch certificates' };
+    }
+}
+
 export async function upsertFirestoreIEI(ieiData: any) {
     try {
         if (!ieiData.appwriteId) {

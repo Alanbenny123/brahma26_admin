@@ -3,7 +3,15 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { importCSVBatch, getCSVRowCount } from '@/actions/import-csv';
+import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
+import { importCSVBatch, getCSVRowCount, addCombinedEntry } from '@/actions/import-csv';
+import { Send } from 'lucide-react';
+
+interface ClientImportCSVPageProps {
+    eventNames?: string[];
+    festOptions?: string[];
+}
 
 interface BatchResult {
     ticketsCreated: number;
@@ -14,8 +22,18 @@ interface BatchResult {
     errors: string[];
 }
 
-export default function ClientImportCSVPage() {
+export default function ClientImportCSVPage({ eventNames = [], festOptions = ['BRAHMA', 'ASHWAMEDHA'] }: ClientImportCSVPageProps) {
     const [status, setStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+    const [addEntryStatus, setAddEntryStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [addEntryMsg, setAddEntryMsg] = useState('');
+    const [addForm, setAddForm] = useState({
+        student_id: '',
+        event_name: '',
+        fest: '',
+        ticket_id: '',
+        transaction_id: '',
+        payment_id: '',
+    });
     const [progress, setProgress] = useState({ current: 0, total: 0 });
     const [cumulative, setCumulative] = useState<BatchResult>({
         ticketsCreated: 0,
@@ -75,6 +93,33 @@ export default function ClientImportCSVPage() {
         setStatus('idle');
     };
 
+    const handleAddEntry = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!addForm.student_id.trim() || !addForm.event_name.trim() || !addForm.fest.trim()) {
+            setAddEntryMsg('Student ID, Event Name, and Fest are required');
+            setAddEntryStatus('error');
+            return;
+        }
+        setAddEntryStatus('loading');
+        setAddEntryMsg('');
+        const result = await addCombinedEntry({
+            student_id: addForm.student_id.trim(),
+            event_name: addForm.event_name.trim(),
+            fest: addForm.fest.trim(),
+            ticket_id: addForm.ticket_id.trim() || undefined,
+            transaction_id: addForm.transaction_id.trim() || undefined,
+            payment_id: addForm.payment_id.trim() || undefined,
+        });
+        if (result.success) {
+            setAddEntryMsg('Entry added successfully!');
+            setAddEntryStatus('success');
+            setAddForm({ student_id: '', event_name: '', fest: '', ticket_id: '', transaction_id: '', payment_id: '' });
+        } else {
+            setAddEntryMsg(result.error || 'Failed');
+            setAddEntryStatus('error');
+        }
+    };
+
     const pct = progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
 
     return (
@@ -99,10 +144,111 @@ export default function ClientImportCSVPage() {
                 </CardContent>
             </Card>
 
+            {/* Add Single Entry - same style as Issue Ticket */}
+            <Card className="glass-card border-cyan-500/30 bg-cyan-500/5">
+                <CardHeader>
+                    <CardTitle className="text-white/90">Add Entry (Manual)</CardTitle>
+                    <p className="text-sm text-white/50 mt-1">Add one record to Firebase — same structure as combined.csv. Empty IDs are auto-generated.</p>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleAddEntry} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Student ID *</label>
+                                <Input
+                                    value={addForm.student_id}
+                                    onChange={(e) => setAddForm(f => ({ ...f, student_id: e.target.value }))}
+                                    placeholder="e.g. brah_28316"
+                                    className="bg-white/5 border-white/10"
+                                    required
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Event Name *</label>
+                                <Input
+                                    list="event-name-list"
+                                    value={addForm.event_name}
+                                    onChange={(e) => setAddForm(f => ({ ...f, event_name: e.target.value }))}
+                                    placeholder="Type or select event..."
+                                    className="bg-white/5 border-white/10"
+                                    required
+                                />
+                                <datalist id="event-name-list">
+                                    {Array.isArray(eventNames) && eventNames.map((name) => (
+                                        <option key={name} value={name} />
+                                    ))}
+                                </datalist>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Fest *</label>
+                                <Select
+                                    value={addForm.fest}
+                                    onChange={(e) => setAddForm(f => ({ ...f, fest: e.target.value }))}
+                                    required
+                                >
+                                    <option value="">Select Fest</option>
+                                    {Array.isArray(festOptions) && festOptions.map((fest) => (
+                                        <option key={fest} value={fest}>{fest}</option>
+                                    ))}
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Ticket ID (optional)</label>
+                                <Input
+                                    value={addForm.ticket_id}
+                                    onChange={(e) => setAddForm(f => ({ ...f, ticket_id: e.target.value }))}
+                                    placeholder="Leave blank to auto-generate"
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Transaction ID (optional)</label>
+                                <Input
+                                    value={addForm.transaction_id}
+                                    onChange={(e) => setAddForm(f => ({ ...f, transaction_id: e.target.value }))}
+                                    placeholder="Auto-generated if empty"
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm text-gray-400">Payment ID (optional)</label>
+                                <Input
+                                    value={addForm.payment_id}
+                                    onChange={(e) => setAddForm(f => ({ ...f, payment_id: e.target.value }))}
+                                    placeholder="Auto-generated if empty"
+                                    className="bg-white/5 border-white/10"
+                                />
+                            </div>
+                        </div>
+                        {addEntryMsg && (
+                            <p className={`text-sm ${addEntryStatus === 'success' ? 'text-green-400' : 'text-red-400'}`}>{addEntryMsg}</p>
+                        )}
+                        <div className="flex justify-end pt-2">
+                            <Button
+                                type="submit"
+                                disabled={addEntryStatus === 'loading'}
+                                className="bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-400 hover:to-green-400 text-black font-bold"
+                            >
+                                {addEntryStatus === 'loading' ? 'Adding...' : (
+                                    <>
+                                        <Send className="w-4 h-4 mr-2" />
+                                        Add Entry
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </form>
+                </CardContent>
+            </Card>
+
             {/* Controls */}
             <Card className="glass-card border-white/10">
                 <CardHeader>
-                    <CardTitle className="text-white/90">Run Import</CardTitle>
+                    <CardTitle className="text-white/90">Run Import (CSV)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex gap-4">

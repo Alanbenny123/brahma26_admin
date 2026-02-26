@@ -188,6 +188,77 @@ export async function importCSVBatch(
     return { result, nextOffset, done: nextOffset >= totalRows, totalRows };
 }
 
+/** Add a single entry (same structure as CSV import) — for manual form entry */
+export async function addCombinedEntry(data: {
+    student_id: string;
+    event_name: string;
+    fest: string;
+    ticket_id?: string;
+    transaction_id?: string;
+    payment_id?: string;
+}): Promise<{ success: boolean; error?: string }> {
+    try {
+        const transaction_id = (data.transaction_id || '').trim() || randomHexId();
+        const payment_id = (data.payment_id || '').trim() || `pay_${randomHexId().toUpperCase()}`;
+        const ticket_id = (data.ticket_id || '').trim() || randomHexId();
+
+        const ticketRef = doc(db, 'tickets', ticket_id);
+        const snap = await getDoc(ticketRef);
+        if (snap.exists()) {
+            await updateDoc(ticketRef, {
+                stud_id: arrayUnion(data.student_id),
+                event_name: data.event_name,
+                fest: data.fest,
+                updatedAt: Timestamp.now(),
+            });
+        } else {
+            await setDoc(ticketRef, {
+                event_id: ticket_id,
+                event_name: data.event_name,
+                fest: data.fest,
+                stud_id: [data.student_id],
+                active: true,
+                team_name: '',
+                appwriteId: ticket_id,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+        }
+
+        const txRef = doc(db, 'transactions', transaction_id);
+        const txSnap = await getDoc(txRef);
+        if (!txSnap.exists()) {
+            await setDoc(txRef, {
+                stud_id: data.student_id,
+                ticket_id,
+                transition_id: payment_id,
+                payment_id,
+                transactions_id: transaction_id,
+                appwriteId: transaction_id,
+                event_name: data.event_name,
+                fest: data.fest,
+                amount: 0,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+        }
+
+        const userRef = doc(db, 'users', data.student_id);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+            await updateDoc(userRef, {
+                tickets: arrayUnion(ticket_id),
+                updatedAt: Timestamp.now(),
+            });
+        }
+
+        return { success: true };
+    } catch (e: any) {
+        console.error('addCombinedEntry error:', e);
+        return { success: false, error: e.message };
+    }
+}
+
 /** Get total row count from CSV without importing */
 export async function getCSVRowCount(): Promise<number> {
     try {
