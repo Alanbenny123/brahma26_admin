@@ -2,7 +2,7 @@
 
 import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt, Shield, Award, Menu, X, MoreHorizontal, UserCircle, Activity } from "lucide-react";
+import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt, Shield, Award, Menu, X, MoreHorizontal, UserCircle, Activity, Upload } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTransition, useState } from 'react';
@@ -30,6 +30,7 @@ const moreNavItems = [
     { name: "Migrate Events", href: "/dashboard/migrate-events", icon: RefreshCw },
     { name: "Data Fetch", href: "/dashboard/data-example", icon: Database },
     { name: "Issue Ticket", href: "/dashboard/issue-ticket", icon: Ticket },
+    { name: "Import CSV", href: "/dashboard/import-csv", icon: Upload },
 ];
 
 interface DashboardNavProps {
