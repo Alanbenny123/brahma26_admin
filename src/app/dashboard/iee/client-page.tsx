@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-react";
-import { deleteIEEE, createIEEE, updateIEEE } from "@/actions/appwrite";
+import { deleteFirestoreIEE, createFirestoreIEE, updateFirestoreIEE } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
 import { useActivityLogger } from "@/lib/use-activity-logger";
@@ -46,7 +46,7 @@ export default function ClientIEEEPage({ initialData, total }: ClientIEEEPagePro
         setIsLoading(true);
         setError('');
         try {
-            await deleteIEEE(selectedItem.$id);
+            await deleteFirestoreIEE(selectedItem.$id);
             setIsDeleteOpen(false);
             setSelectedItem(null);
             window.location.reload();
@@ -75,7 +75,7 @@ export default function ClientIEEEPage({ initialData, total }: ClientIEEEPagePro
         setIsLoading(true);
         setError('');
         try {
-            await createIEEE({
+            await createFirestoreIEE({
                 mebership_id: formData.mebership_id.trim(),
                 validity: formData.validity,
             });
@@ -108,7 +108,7 @@ export default function ClientIEEEPage({ initialData, total }: ClientIEEEPagePro
         setIsLoading(true);
         setError('');
         try {
-            await updateIEEE(selectedItem.$id, {
+            await updateFirestoreIEE(selectedItem.$id, {
                 mebership_id: formData.mebership_id.trim(),
                 validity: formData.validity,
             });
@@ -137,7 +137,7 @@ export default function ClientIEEEPage({ initialData, total }: ClientIEEEPagePro
     const handleToggleValidity = async (item: IEEERecord) => {
         setIsLoading(true);
         try {
-            await updateIEEE(item.$id, {
+            await updateFirestoreIEE(item.$id, {
                 mebership_id: item.mebership_id,
                 validity: !item.validity,
             });

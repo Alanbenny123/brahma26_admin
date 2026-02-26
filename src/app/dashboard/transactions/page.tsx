@@ -1,8 +1,10 @@
-import { getTransactions } from "@/actions/appwrite";
+import { getFirestoreTransactions } from "@/actions/firebase";
+import { normalizeFirebaseDocs } from "@/lib/firebase-normalize";
 import ClientTransactionsPage from "./client-page";
 
 export default async function TransactionsPage() {
-    const { documents: transactions, total } = await getTransactions(true); // Fetch ALL transactions
+    const { transactions, total } = await getFirestoreTransactions();
+    const documents = normalizeFirebaseDocs(transactions);
 
     return (
         <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -12,7 +14,7 @@ export default async function TransactionsPage() {
                 </h1>
             </div>
 
-            <ClientTransactionsPage initialData={transactions as any} total={total} />
+            <ClientTransactionsPage initialData={documents as any} total={total} />
         </div>
     );
 }

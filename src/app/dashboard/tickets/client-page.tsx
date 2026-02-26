@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useMemo } from "react";
 import { Trash2, Edit, Plus, Ticket, BarChart3, Send, X, AlertCircle, Download } from "lucide-react";
-import { deleteItem, updateItem, createItem, issueTicket, cancelTicket, createTicketWithTransactions } from "@/actions/appwrite";
+import { deleteFirestoreTicket, updateFirestoreTicket, createFirestoreTicket, updateFirestoreUser, firebaseIssueTicket, firebaseCancelTicket, firebaseCreateTicketWithTransactions } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Checkbox } from "@/components/ui/checkbox"; // Will create simplified checkbox here or import
 import { useActivityLogger, logAdminAction } from "@/lib/use-activity-logger";
@@ -132,7 +132,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                             );
 
                             // Update user's tickets array
-                            await updateItem('users', user.$id, {
+                            await updateFirestoreUser(user.$id, {
                                 tickets: updatedTickets
                             });
                         }
@@ -140,7 +140,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 }
 
                 // Now delete the ticket
-                await deleteItem('tickets', selectedItem.$id);
+                await deleteFirestoreTicket(selectedItem.$id);
 
                 await logAdminAction({
                     action: `Deleted ticket: ${selectedItem.team_name || selectedItem.$id}`,
@@ -169,7 +169,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
             return;
         }
 
-        const result = await issueTicket(selectedItem.$id, studentIdToIssue);
+        const result = await firebaseIssueTicket(selectedItem.$id, studentIdToIssue);
         setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
 
         if (result.success) {
@@ -196,7 +196,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
             return;
         }
 
-        const result = await cancelTicket(selectedItem.$id, studentIdToCancel);
+        const result = await firebaseCancelTicket(selectedItem.$id, studentIdToCancel);
         setMessage({ type: result.success ? 'success' : 'error', text: result.message || result.error || 'An error occurred' });
 
         if (result.success) {
@@ -251,7 +251,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                     active: formData.active ?? true,
                     stud_id: Array.isArray(formData.stud_id) ? formData.stud_id : []
                 };
-                await updateItem('tickets', selectedItem.$id, dataToSave);
+                await updateFirestoreTicket(selectedItem.$id, dataToSave);
                 await logAdminAction({
                     action: `Updated ticket: ${formData.team_name || selectedItem.$id}`,
                     actionType: 'update',
@@ -262,7 +262,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 setMessage({ type: 'success', text: 'Ticket updated successfully' });
             } else {
                 // Create new ticket with transactions
-                const result = await createTicketWithTransactions(formData, studentIds, transactionIds);
+                const result = await firebaseCreateTicketWithTransactions(formData, studentIds, transactionIds);
                 if (result.success) {
                     await logAdminAction({
                         action: `Created new ticket: ${formData.team_name || 'New Ticket'}`,
@@ -369,7 +369,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                                     (ticketId: string) => ticketId !== item.$id
                                 );
 
-                                await updateItem('users', user.$id, {
+                                await updateFirestoreUser(user.$id, {
                                     tickets: updatedTickets
                                 });
                             }
@@ -378,7 +378,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 }
 
                 // Now delete all tickets
-                await Promise.all(items.map(item => deleteItem('tickets', item.$id)));
+                await Promise.all(items.map(item => deleteFirestoreTicket(item.$id)));
 
                 setMessage({ type: 'success', text: `${items.length} tickets deleted successfully` });
 

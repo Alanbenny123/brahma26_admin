@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
+import { deleteFirestoreAttendance, updateFirestoreAttendance, createFirestoreAttendance } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
 import { ClipboardCheck, BarChart3, Plus } from "lucide-react";
@@ -53,7 +53,7 @@ export default function ClientAttendancePage({ initialData, total }: { initialDa
 
     const confirmDelete = async () => {
         if (selectedItem) {
-            await deleteItem('attendance', selectedItem.$id);
+            await deleteFirestoreAttendance(selectedItem.$id);
             setIsDeleteOpen(false);
             setSelectedItem(null);
         }
@@ -63,9 +63,9 @@ export default function ClientAttendancePage({ initialData, total }: { initialDa
         e.preventDefault();
 
         if (selectedItem && selectedItem.$id) {
-            await updateItem('attendance', selectedItem.$id, formData);
+            await updateFirestoreAttendance(selectedItem.$id, formData);
         } else {
-            await createItem('attendance', formData);
+            await createFirestoreAttendance(formData);
         }
         setIsEditOpen(false);
         setSelectedItem(null);

@@ -1,8 +1,10 @@
-import { getIEEE } from "@/actions/appwrite";
+import { getFirestoreIEE } from "@/actions/firebase";
+import { normalizeFirebaseDocs } from "@/lib/firebase-normalize";
 import ClientIEEEPage from "./client-page";
 
 export default async function IEEEPage() {
-    const { documents: ieeeRecords, total } = await getIEEE();
+    const { documents, total } = await getFirestoreIEE();
+    const normalized = normalizeFirebaseDocs(documents);
 
-    return <ClientIEEEPage initialData={ieeeRecords} total={total} />;
+    return <ClientIEEEPage initialData={normalized} total={total} />;
 }

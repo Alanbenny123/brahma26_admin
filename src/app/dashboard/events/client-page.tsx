@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { Trash2, Edit, Plus, Calendar, BarChart3, Upload, RefreshCw, IndianRupee } from "lucide-react";
-import { deleteItem, updateItem, createItem, createManyItems } from "@/actions/appwrite";
+import { deleteFirestoreEvent, updateFirestoreEvent, createFirestoreEvent } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { generateEventPass } from "@/lib/utils";
 import { formatTime, formatDate } from "@/lib/date-utils";
@@ -176,7 +176,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
     const confirmDelete = async () => {
         if (selectedItem) {
-            await deleteItem('events', selectedItem.$id);
+            await deleteFirestoreEvent(selectedItem.$id);
             await logAdminAction({
                 action: `Deleted event: ${selectedItem.event_name}`,
                 actionType: 'delete',
@@ -247,7 +247,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             console.log('[CLIENT] Updating event:', selectedItem.$id);
             console.log('[CLIENT] Data to save:', dataToSave);
             
-            const result = await updateItem('events', selectedItem.$id, dataToSave);
+            const result = await updateFirestoreEvent(selectedItem.$id, dataToSave);
             
             console.log('[CLIENT] Update result:', result);
             
@@ -272,7 +272,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             setFormData({});
             // Removed auto-reload - use Ctrl+Shift+R to refresh
         } else {
-            const result = await createItem('events', dataToSave);
+            const result = await createFirestoreEvent(dataToSave);
             if (!result.success) {
                 // Show error message to user
                 if (result.error) {
@@ -688,38 +688,15 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
             }
 
             try {
-                const result = await createManyItems('events', dataToUpload);
-                console.log('Upload result:', result);
-                
-                if (!result || typeof result !== 'object') {
-                    throw new Error('Invalid response from server');
-                }
-                
-                if (result.success) {
-                    // Check if there were duplicates skipped
-                    if ('duplicates' in result && result.duplicates && result.duplicates.length > 0) {
-                        const duplicateList = result.duplicates.map(d => 
-                            `  • Row ${d.index}: "${d.event_name}" (${d.fest})`
-                        ).join('\n');
-                        alert(
-                            `Upload Complete\n\n` +
-                            `✓ Successfully uploaded: ${result.created} event(s)\n` +
-                            `⚠ Skipped ${result.duplicates.length} duplicate(s):\n\n${duplicateList}\n\n` +
-                            `These events already exist in the database.`
-                        );
-                    } else {
-                        alert(`Successfully uploaded ${result.created || dataToUpload.length} events.`);
-                    }
+                const results = await Promise.all(dataToUpload.map((e: any) => createFirestoreEvent(e)));
+                const created = results.filter(r => r.success).length;
+                const failed = results.length - created;
+                if (failed === 0) {
+                    alert(`Successfully uploaded ${created} events.`);
                 } else {
-                    // Show detailed error message for validation errors
-                    const errorMsg = result.error && typeof result.error === 'string' 
-                        ? result.error 
-                        : (result.error && typeof result.error === 'object' 
-                            ? JSON.stringify(result.error) 
-                            : 'Failed to upload events. Unknown error.');
-                    alert(`Upload Failed\n\n${errorMsg}\n\nCheck console for details.`);
-                    console.error('Bulk upload error:', result);
+                    alert(`Upload Complete\n\n✓ Uploaded: ${created}\n✗ Failed: ${failed}`);
                 }
+                const result = { success: true };
             } catch (error) {
                 console.error('Upload exception:', error);
                 const errorMessage = error instanceof Error ? error.message : String(error);
@@ -734,7 +711,7 @@ export default function ClientEventsPage({ initialData, total, tickets }: Client
 
     const handleDeleteMany = async (items: EventType[]) => {
         if (confirm(`Are you sure you want to delete ${items.length} events?`)) {
-            await Promise.all(items.map(item => deleteItem('events', item.$id)));
+            await Promise.all(items.map(item => deleteFirestoreEvent(item.$id)));
         }
     };
 

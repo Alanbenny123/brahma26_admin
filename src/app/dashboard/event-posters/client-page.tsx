@@ -8,7 +8,7 @@ import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { Upload, Trash2, Eye, ImageIcon, Plus, Search, Edit, ChevronDown, ChevronUp } from "lucide-react";
 import { uploadEventImageClient } from "@/lib/client-storage";
-import { updateItem } from "@/actions/appwrite";
+import { updateFirestoreEvent } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
 import Image from "next/image";
@@ -93,7 +93,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
 
             if (result.success && result.url) {
                 // Update event's poster field in Appwrite
-                const updateResult = await updateItem('events', selectedEventId, {
+                const updateResult = await updateFirestoreEvent(selectedEventId, {
                     poster: result.url
                 });
 
@@ -120,7 +120,7 @@ export default function ClientEventPostersPage({ events, total }: ClientEventPos
     const handleDelete = async (event: Event) => {
         if (!confirm(`Remove poster from "${event.event_name}"?`)) return;
 
-        const updateResult = await updateItem('events', event.$id, {
+        const updateResult = await updateFirestoreEvent(event.$id, {
             poster: null
         });
 

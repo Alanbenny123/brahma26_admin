@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { Trash2, Edit, Plus, Receipt, BarChart3, IndianRupee, Loader2, RefreshCw } from "lucide-react";
-import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
+import { deleteFirestoreTransaction, updateFirestoreTransaction, createFirestoreTransaction } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { useActivityLogger } from "@/lib/use-activity-logger";
 import { fetchPaymentDetails } from "@/actions/razorpay";
@@ -259,7 +259,7 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
 
     const confirmDelete = async () => {
         if (selectedItem) {
-            await deleteItem('transactions', selectedItem.$id);
+            await deleteFirestoreTransaction(selectedItem.$id);
             setIsDeleteOpen(false);
             setSelectedItem(null);
         }
@@ -290,7 +290,7 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
         }
 
         if (selectedItem && selectedItem.$id) {
-            await updateItem('transactions', selectedItem.$id, formData);
+            await updateFirestoreTransaction(selectedItem.$id, formData);
         }
         setIsEditOpen(false);
         setSelectedItem(null);
@@ -351,7 +351,7 @@ export default function ClientTransactionsPage({ initialData, total }: ClientTra
 
     const handleDeleteMany = async (items: TransactionType[]) => {
         if (confirm(`Are you sure you want to delete ${items.length} transactions?`)) {
-            await Promise.all(items.map(item => deleteItem('transactions', item.$id)));
+            await Promise.all(items.map(item => deleteFirestoreTransaction(item.$id)));
         }
     };
 

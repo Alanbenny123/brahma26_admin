@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Trash2, Plus, Database, FileCheck, CheckCircle, XCircle } from "lucide-react";
-import { deleteIEI, createIEI, updateIEI } from "@/actions/appwrite";
+import { deleteFirestoreIEI, createFirestoreIEI, updateFirestoreIEI } from "@/actions/firebase";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { formatDate } from "@/lib/date-utils";
 import { useActivityLogger } from "@/lib/use-activity-logger";
@@ -39,7 +39,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
         setIsLoading(true);
         setError('');
         try {
-            await deleteIEI(selectedItem.$id);
+            await deleteFirestoreIEI(selectedItem.$id);
             setIsDeleteOpen(false);
             setSelectedItem(null);
             window.location.reload();
@@ -68,7 +68,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
         setIsLoading(true);
         setError('');
         try {
-            await createIEI({
+            await createFirestoreIEI({
                 mebership_id: formData.mebership_id.trim(),
                 validity: formData.validity,
             });
@@ -101,7 +101,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
         setIsLoading(true);
         setError('');
         try {
-            await updateIEI(selectedItem.$id, {
+            await updateFirestoreIEI(selectedItem.$id, {
                 mebership_id: formData.mebership_id.trim(),
                 validity: formData.validity,
             });
@@ -130,7 +130,7 @@ export default function ClientIEIPage({ initialData, total }: ClientIEIPageProps
     const handleToggleValidity = async (item: IEIRecord) => {
         setIsLoading(true);
         try {
-            await updateIEI(item.$id, {
+            await updateFirestoreIEI(item.$id, {
                 mebership_id: item.mebership_id,
                 validity: !item.validity,
             });

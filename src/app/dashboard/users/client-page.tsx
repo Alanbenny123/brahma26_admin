@@ -5,7 +5,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
-import { deleteItem, updateItem, createItem } from "@/actions/appwrite";
+import { deleteFirestoreUser, updateFirestoreUser, createFirestoreUser, updateFirestoreTransaction } from "@/actions/firebase";
 import { useRouter } from "next/navigation";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { OverviewModal } from "@/components/dashboard/overview-modal";
@@ -380,7 +380,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         }
 
         try {
-            await updateItem('transactions', selectedTransaction.$id, {
+            await updateFirestoreTransaction(selectedTransaction.$id, {
                 transition_id: transactionIdInput.trim()
             });
 
@@ -451,7 +451,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
 
     const confirmDelete = async () => {
         if (selectedItem) {
-            await deleteItem('users', selectedItem.$id);
+            await deleteFirestoreUser(selectedItem.$id);
             await logAdminAction({
                 action: `Deleted user: ${selectedItem.name}`,
                 actionType: 'delete',
@@ -490,7 +490,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
         }
 
         if (selectedItem && selectedItem.$id) {
-            result = await updateItem('users', selectedItem.$id, dataToSave);
+            result = await updateFirestoreUser(selectedItem.$id, dataToSave);
             if (result.success) {
                 await logAdminAction({
                     action: `Updated user: ${dataToSave.name}`,
@@ -501,7 +501,7 @@ export default function ClientUsersPage({ initialData, total, transactions, tick
                 });
             }
         } else {
-            result = await createItem('users', dataToSave);
+            result = await createFirestoreUser(dataToSave);
             if (result.success) {
                 await logAdminAction({
                     action: `Created user: ${dataToSave.name}`,

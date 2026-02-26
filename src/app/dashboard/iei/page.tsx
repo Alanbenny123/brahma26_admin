@@ -1,8 +1,10 @@
-import { getIEI } from "@/actions/appwrite";
+import { getFirestoreIEI } from "@/actions/firebase";
+import { normalizeFirebaseDocs } from "@/lib/firebase-normalize";
 import ClientIEIPage from "./client-page";
 
 export default async function IEIPage() {
-    const { documents: ieiRecords, total } = await getIEI();
+    const { documents, total } = await getFirestoreIEI();
+    const normalized = normalizeFirebaseDocs(documents);
 
-    return <ClientIEIPage initialData={ieiRecords} total={total} />;
+    return <ClientIEIPage initialData={normalized} total={total} />;
 }

@@ -442,6 +442,148 @@ export async function deleteFirestoreTicket(ticketId: string) {
     }
 }
 
+export async function updateFirestoreTicket(ticketId: string, ticketData: any) {
+    try {
+        const ticketRef = doc(db, 'tickets', ticketId);
+        await updateDoc(ticketRef, {
+            ...ticketData,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating ticket:', error);
+        return { success: false, error: 'Failed to update ticket' };
+    }
+}
+
+// Joined query: tickets enriched with event name/fest
+export async function getFirestoreTicketsWithEvents() {
+    try {
+        const [ticketsResult, eventsResult] = await Promise.all([
+            getFirestoreTickets(),
+            getFirestoreEvents(),
+        ]);
+        const eMap = new Map((eventsResult.events || []).map((e: any) => [e.id, e]));
+        const enriched = (ticketsResult.tickets || []).map((ticket: any) => ({
+            ...ticket,
+            event_name: eMap.get(ticket.event_id)?.event_name || 'Unknown Event',
+            fest: eMap.get(ticket.event_id)?.fest || 'Unknown Fest',
+        }));
+        return { tickets: enriched, total: enriched.length };
+    } catch (error) {
+        console.error('Error fetching tickets with events:', error);
+        return { tickets: [], total: 0, error: 'Failed to fetch tickets with events' };
+    }
+}
+
+// Joined query: users enriched with their registered events
+export async function getFirestoreUsersWithEvents() {
+    try {
+        const [usersResult, ticketsResult, eventsResult] = await Promise.all([
+            getFirestoreUsers(),
+            getFirestoreTickets(),
+            getFirestoreEvents(),
+        ]);
+        const eventsMap = new Map((eventsResult.events || []).map((e: any) => [e.id, e]));
+        const userTicketsMap = new Map<string, any[]>();
+        for (const ticket of (ticketsResult.tickets || []) as any[]) {
+            const studIds: string[] = Array.isArray(ticket.stud_id) ? ticket.stud_id : [];
+            for (const studId of studIds) {
+                if (!userTicketsMap.has(studId)) userTicketsMap.set(studId, []);
+                userTicketsMap.get(studId)!.push(ticket);
+            }
+        }
+        const users = (usersResult.users || []).map((user: any) => {
+            const userTickets = userTicketsMap.get(user.id) || [];
+            const registeredEvents = userTickets
+                .map((t: any) => eventsMap.get(t.event_id))
+                .filter(Boolean);
+            return { ...user, registeredEvents };
+        });
+        return { users, total: users.length };
+    } catch (error) {
+        console.error('Error fetching users with events:', error);
+        return { users: [], total: 0, error: 'Failed to fetch users with events' };
+    }
+}
+
+// Firebase-native issueTicket: add a studentId to ticket.stud_id
+export async function firebaseIssueTicket(ticketId: string, studentId: string) {
+    try {
+        const ticketRef = doc(db, 'tickets', ticketId);
+        const ticketSnap = await getDoc(ticketRef);
+        if (!ticketSnap.exists()) return { success: false, error: 'Ticket not found' };
+        const ticket = ticketSnap.data();
+        const currentStudIds: string[] = Array.isArray(ticket.stud_id) ? ticket.stud_id : [];
+        if (currentStudIds.includes(studentId)) return { success: false, error: 'Student already assigned to this ticket' };
+        await updateDoc(ticketRef, { stud_id: [...currentStudIds, studentId], updatedAt: Timestamp.now() });
+        return { success: true, message: `Ticket issued to student ${studentId}` };
+    } catch (error) {
+        console.error('Error issuing ticket:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to issue ticket' };
+    }
+}
+
+// Firebase-native cancelTicket: remove a studentId from ticket.stud_id
+export async function firebaseCancelTicket(ticketId: string, studentId: string) {
+    try {
+        const ticketRef = doc(db, 'tickets', ticketId);
+        const ticketSnap = await getDoc(ticketRef);
+        if (!ticketSnap.exists()) return { success: false, error: 'Ticket not found' };
+        const ticket = ticketSnap.data();
+        const currentStudIds: string[] = Array.isArray(ticket.stud_id) ? ticket.stud_id : [];
+        if (!currentStudIds.includes(studentId)) return { success: false, error: 'Student not assigned to this ticket' };
+        await updateDoc(ticketRef, { stud_id: currentStudIds.filter(id => id !== studentId), updatedAt: Timestamp.now() });
+        return { success: true, message: `Ticket cancelled for student ${studentId}` };
+    } catch (error) {
+        console.error('Error cancelling ticket:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to cancel ticket' };
+    }
+}
+
+// Firebase-native createTicketWithTransactions
+export async function firebaseCreateTicketWithTransactions(ticketData: any, studentIds: string[], transactionIds: string[]) {
+    try {
+        if (!ticketData.event_id) return { success: false, error: 'Event ID is required' };
+        const newTicketId = crypto.randomUUID();
+        const ticketRef = doc(db, 'tickets', newTicketId);
+        await setDoc(ticketRef, {
+            event_id: ticketData.event_id,
+            team_name: ticketData.team_name || '',
+            active: ticketData.active ?? true,
+            stud_id: studentIds,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        const transactionsCreated: string[] = [];
+        for (let i = 0; i < studentIds.length; i++) {
+            const studentId = studentIds[i];
+            const transitionId = transactionIds[i] || '';
+            const txId = crypto.randomUUID();
+            const txRef = doc(db, 'transactions', txId);
+            await setDoc(txRef, {
+                stud_id: studentId,
+                ticket_id: newTicketId,
+                transition_id: transitionId,
+                amount: ticketData.amount || 0,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+            transactionsCreated.push(txId);
+        }
+        return {
+            success: true,
+            ticketId: newTicketId,
+            transactionsCreated: transactionsCreated.length,
+            totalStudents: studentIds.length,
+            message: `Ticket created with ${studentIds.length} student(s) and ${transactionsCreated.length} transaction(s)`,
+        };
+    } catch (error) {
+        console.error('Error creating ticket with transactions:', error);
+        return { success: false, error: error instanceof Error ? error.message : 'Failed to create ticket' };
+    }
+}
+
 // Transactions Collection
 export async function getFirestoreTransactions() {
     try {
@@ -619,6 +761,20 @@ export async function upsertFirestoreAttendance(attendanceData: any) {
     }
 }
 
+export async function updateFirestoreAttendance(attendanceId: string, data: any) {
+    try {
+        const attendanceRef = doc(db, 'attendance', attendanceId);
+        await updateDoc(attendanceRef, {
+            ...data,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        return { success: false, error: 'Failed to update attendance' };
+    }
+}
+
 export async function deleteFirestoreAttendance(attendanceId: string) {
     try {
         const attendanceRef = doc(db, 'attendance', attendanceId);
@@ -774,6 +930,63 @@ export async function createRTDBAttendance(attendanceData: any) {
 
 // ============= ADMIN OPERATIONS =============
 
+export async function getFirestoreAdmins() {
+    try {
+        const adminsRef = collection(db, 'admin');
+        const snapshot = await getDocs(adminsRef);
+        const admins = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }));
+        return { admins, total: admins.length };
+    } catch (error) {
+        console.error('Error fetching admins:', error);
+        return { admins: [], total: 0, error: 'Failed to fetch admins' };
+    }
+}
+
+export async function createFirestoreAdmin(adminData: any) {
+    try {
+        const adminRef = collection(db, 'admin');
+        const newId = adminData.id || crypto.randomUUID();
+        const adminDocRef = doc(db, 'admin', newId);
+        await setDoc(adminDocRef, {
+            ...adminData,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        return { id: newId, success: true };
+    } catch (error) {
+        console.error('Error creating admin:', error);
+        return { success: false, error: 'Failed to create admin' };
+    }
+}
+
+export async function updateFirestoreAdmin(adminId: string, adminData: any) {
+    try {
+        const adminDocRef = doc(db, 'admin', adminId);
+        await updateDoc(adminDocRef, {
+            ...adminData,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating admin:', error);
+        return { success: false, error: 'Failed to update admin' };
+    }
+}
+
+export async function deleteFirestoreAdmin(adminId: string) {
+    try {
+        const adminDocRef = doc(db, 'admin', adminId);
+        await deleteDoc(adminDocRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting admin:', error);
+        return { success: false, error: 'Failed to delete admin' };
+    }
+}
+
 // Upsert Admin (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreAdmin(adminData: any) {
     try {
@@ -812,6 +1025,61 @@ export async function upsertFirestoreAdmin(adminData: any) {
 
 // ============= IEE OPERATIONS =============
 
+export async function getFirestoreIEE() {
+    try {
+        const ieeRef = collection(db, 'iee');
+        const snapshot = await getDocs(ieeRef);
+        const iee = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }));
+        return { documents: iee, total: iee.length };
+    } catch (error) {
+        console.error('Error fetching IEE:', error);
+        return { documents: [], total: 0, error: 'Failed to fetch IEE' };
+    }
+}
+
+export async function createFirestoreIEE(data: { mebership_id: string; validity: boolean }) {
+    try {
+        const ieeRef = collection(db, 'iee');
+        const docRef = await addDoc(ieeRef, {
+            ...data,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        return { id: docRef.id, success: true };
+    } catch (error) {
+        console.error('Error creating IEE:', error);
+        return { success: false, error: 'Failed to create IEE' };
+    }
+}
+
+export async function updateFirestoreIEE(id: string, data: Partial<{ mebership_id: string; validity: boolean }>) {
+    try {
+        const ieeDocRef = doc(db, 'iee', id);
+        await updateDoc(ieeDocRef, {
+            ...data,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating IEE:', error);
+        return { success: false, error: 'Failed to update IEE' };
+    }
+}
+
+export async function deleteFirestoreIEE(id: string) {
+    try {
+        const ieeDocRef = doc(db, 'iee', id);
+        await deleteDoc(ieeDocRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting IEE:', error);
+        return { success: false, error: 'Failed to delete IEE' };
+    }
+}
+
 // Upsert IEE (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreIEE(ieeData: any) {
     try {
@@ -849,6 +1117,61 @@ export async function upsertFirestoreIEE(ieeData: any) {
 }
 
 // ============= IEI OPERATIONS =============
+
+export async function getFirestoreIEI() {
+    try {
+        const ieiRef = collection(db, 'iei');
+        const snapshot = await getDocs(ieiRef);
+        const iei = snapshot.docs.map(docSnap => ({
+            id: docSnap.id,
+            ...docSnap.data()
+        }));
+        return { documents: iei, total: iei.length };
+    } catch (error) {
+        console.error('Error fetching IEI:', error);
+        return { documents: [], total: 0, error: 'Failed to fetch IEI' };
+    }
+}
+
+export async function createFirestoreIEI(data: { mebership_id: string; validity: boolean }) {
+    try {
+        const ieiRef = collection(db, 'iei');
+        const docRef = await addDoc(ieiRef, {
+            ...data,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
+        return { id: docRef.id, success: true };
+    } catch (error) {
+        console.error('Error creating IEI:', error);
+        return { success: false, error: 'Failed to create IEI' };
+    }
+}
+
+export async function updateFirestoreIEI(id: string, data: Partial<{ mebership_id: string; validity: boolean }>) {
+    try {
+        const ieiDocRef = doc(db, 'iei', id);
+        await updateDoc(ieiDocRef, {
+            ...data,
+            updatedAt: Timestamp.now(),
+        });
+        return { success: true };
+    } catch (error) {
+        console.error('Error updating IEI:', error);
+        return { success: false, error: 'Failed to update IEI' };
+    }
+}
+
+export async function deleteFirestoreIEI(id: string) {
+    try {
+        const ieiDocRef = doc(db, 'iei', id);
+        await deleteDoc(ieiDocRef);
+        return { success: true };
+    } catch (error) {
+        console.error('Error deleting IEI:', error);
+        return { success: false, error: 'Failed to delete IEI' };
+    }
+}
 
 // Upsert IEI (Create or Update) - Uses Appwrite ID as Firebase document ID
 export async function upsertFirestoreIEI(ieiData: any) {

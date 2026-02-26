@@ -1,13 +1,17 @@
-import { getEvents, getTickets } from "@/actions/appwrite";
+import { getFirestoreEvents, getFirestoreTickets } from "@/actions/firebase";
+import { normalizeFirebaseDocs } from "@/lib/firebase-normalize";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { Calendar } from "lucide-react";
 import ClientEventsPage from "./client-page";
 
 export default async function EventsPage() {
-    const [{ documents: events, total }, { documents: tickets }] = await Promise.all([
-        getEvents(true), // Fetch ALL events
-        getTickets(true) // Fetch ALL tickets
+    const [eventsResult, ticketsResult] = await Promise.all([
+        getFirestoreEvents(),
+        getFirestoreTickets(),
     ]);
+
+    const events = normalizeFirebaseDocs(eventsResult.events);
+    const tickets = normalizeFirebaseDocs(ticketsResult.tickets);
 
     return (
         <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -19,7 +23,7 @@ export default async function EventsPage() {
 
             <ClientEventsPage
                 initialData={events as any}
-                total={total}
+                total={eventsResult.total}
                 tickets={tickets as any}
             />
         </div>

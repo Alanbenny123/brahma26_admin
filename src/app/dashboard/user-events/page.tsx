@@ -1,9 +1,15 @@
-import { getUsersWithEvents, getEvents } from "@/actions/appwrite";
+import { getFirestoreUsersWithEvents, getFirestoreEvents } from "@/actions/firebase";
+import { normalizeFirebaseDocs } from "@/lib/firebase-normalize";
 import ClientUserEventsPage from "./client-page";
 
 export default async function UserEventsPage() {
-    const { users, total } = await getUsersWithEvents(true); // Fetch ALL users with their events
-    const { documents: events } = await getEvents(true); // Fetch ALL events
+    const [usersWithEventsResult, eventsResult] = await Promise.all([
+        getFirestoreUsersWithEvents(),
+        getFirestoreEvents(),
+    ]);
+
+    const users = normalizeFirebaseDocs(usersWithEventsResult.users);
+    const events = normalizeFirebaseDocs(eventsResult.events);
 
     return (
         <div className="space-y-8 p-8 max-w-7xl mx-auto">
@@ -13,7 +19,7 @@ export default async function UserEventsPage() {
                 </h1>
             </div>
 
-            <ClientUserEventsPage initialData={users || []} total={total || 0} allEvents={events || []} />
+            <ClientUserEventsPage initialData={users || []} total={usersWithEventsResult.total || 0} allEvents={events || []} />
         </div>
     );
 }
