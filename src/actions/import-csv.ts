@@ -131,29 +131,43 @@ export async function importCSVBatch(
         }
     }
 
-    // Upsert transactions
+    // Upsert transactions + raw combined row
     for (const row of batch) {
         try {
+            // Transaction document
             const txRef = doc(db, 'transactions', row.transactions_id);
             const snap = await getDoc(txRef);
             if (snap.exists()) {
                 result.transactionsSkipped!++;
-                continue;
+            } else {
+                await setDoc(txRef, {
+                    stud_id: row.student_id,
+                    ticket_id: row.ticket_id,
+                    transition_id: row.payment_id,
+                    payment_id: row.payment_id,
+                    transactions_id: row.transactions_id,
+                    appwriteId: row.transactions_id,
+                    event_name: row.event_name,
+                    fest: row.fest,
+                    amount: 0,
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
+                });
+                result.transactionsCreated!++;
             }
-            await setDoc(txRef, {
-                stud_id: row.student_id,
-                ticket_id: row.ticket_id,
-                transition_id: row.payment_id,
-                payment_id: row.payment_id,
+
+            // Raw combined document (one doc per CSV row / logical transaction)
+            const combinedRef = doc(db, 'combined', row.transactions_id);
+            await setDoc(combinedRef, {
                 transactions_id: row.transactions_id,
-                appwriteId: row.transactions_id,
+                payment_id: row.payment_id,
                 event_name: row.event_name,
                 fest: row.fest,
-                amount: 0,
+                student_id: row.student_id,
+                ticket_id: row.ticket_id,
                 createdAt: Timestamp.now(),
                 updatedAt: Timestamp.now(),
             });
-            result.transactionsCreated!++;
         } catch (e: any) {
             result.errors!.push(`Transaction ${row.transactions_id}: ${e.message}`);
         }
@@ -251,6 +265,19 @@ export async function addCombinedEntry(data: {
                 updatedAt: Timestamp.now(),
             });
         }
+
+        // Also store raw row in `combined` collection
+        const combinedRef = doc(db, 'combined', transaction_id);
+        await setDoc(combinedRef, {
+            transactions_id: transaction_id,
+            payment_id,
+            event_name: data.event_name,
+            fest: data.fest,
+            student_id: data.student_id,
+            ticket_id,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+        });
 
         return { success: true };
     } catch (e: any) {
