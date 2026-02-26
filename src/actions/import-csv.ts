@@ -47,7 +47,7 @@ function parseCSV(csvContent: string): ImportRow[] {
         const payment_id = (cols[1] || '').trim();
         const event_name = (cols[2] || '').trim();
         const fest = (cols[3] || '').trim();
-        const student_id = (cols[4] || '').trim();
+        const student_id = (cols[4] || '').trim().toLowerCase();
         const ticket_id = (cols[5] || '').trim();
 
         if (!student_id && !ticket_id) continue; // skip empty rows
@@ -212,6 +212,7 @@ export async function addCombinedEntry(data: {
     payment_id?: string;
 }): Promise<{ success: boolean; error?: string }> {
     try {
+        const student_id = (data.student_id || '').trim().toLowerCase();
         const transaction_id = (data.transaction_id || '').trim() || randomHexId();
         const payment_id = (data.payment_id || '').trim() || `pay_${randomHexId().toUpperCase()}`;
         const ticket_id = (data.ticket_id || '').trim() || randomHexId();
@@ -220,7 +221,7 @@ export async function addCombinedEntry(data: {
         const snap = await getDoc(ticketRef);
         if (snap.exists()) {
             await updateDoc(ticketRef, {
-                stud_id: arrayUnion(data.student_id),
+                stud_id: arrayUnion(student_id),
                 event_name: data.event_name,
                 fest: data.fest,
                 updatedAt: Timestamp.now(),
@@ -230,7 +231,7 @@ export async function addCombinedEntry(data: {
                 event_id: ticket_id,
                 event_name: data.event_name,
                 fest: data.fest,
-                stud_id: [data.student_id],
+                stud_id: [student_id],
                 active: true,
                 team_name: '',
                 appwriteId: ticket_id,
@@ -243,7 +244,7 @@ export async function addCombinedEntry(data: {
         const txSnap = await getDoc(txRef);
         if (!txSnap.exists()) {
             await setDoc(txRef, {
-                stud_id: data.student_id,
+                stud_id: student_id,
                 ticket_id,
                 transition_id: payment_id,
                 payment_id,
@@ -257,7 +258,7 @@ export async function addCombinedEntry(data: {
             });
         }
 
-        const userRef = doc(db, 'users', data.student_id);
+        const userRef = doc(db, 'users', student_id);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
             await updateDoc(userRef, {
@@ -273,7 +274,7 @@ export async function addCombinedEntry(data: {
             payment_id,
             event_name: data.event_name,
             fest: data.fest,
-            student_id: data.student_id,
+            student_id,
             ticket_id,
             createdAt: Timestamp.now(),
             updatedAt: Timestamp.now(),
