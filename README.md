@@ -1,4 +1,4 @@
-# Brahma26 Admin Dashboard
+# Brahma26 Admin Dashboard 
 A modern, full-featured admin dashboard for managing the **Brahma Ashwamedha 2026** event system. Built with Next.js 14, Appwrite, and Firebase.
 --
 ## 🚀 Quick Start
