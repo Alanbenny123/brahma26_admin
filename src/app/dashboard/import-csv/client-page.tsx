@@ -336,18 +336,36 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90 font-mono placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                         />
                     </div>
-                    <div className="flex gap-4">
-                        <Button
-                            onClick={handleBulkUpload}
-                            disabled={bulkStatus === 'running' || !bulkCsvContent.trim()}
-                            className="bg-purple-500 hover:bg-purple-400 text-white font-bold"
-                        >
-                            {bulkStatus === 'running' ? 'Uploading...' : bulkStatus === 'done' ? '✓ Done — Run Again' : 'Start Bulk Upload'}
-                        </Button>
-                        {bulkStatus === 'running' && (
-                            <Button onClick={handleBulkStop} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-                                Stop
-                            </Button>
+                    <div className="flex gap-4 items-center">
+                        {bulkStatus === 'done' ? (
+                            <>
+                                <span className="px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
+                                    ✓ Done
+                                </span>
+                                <Button
+                                    onClick={handleBulkUpload}
+                                    disabled={!bulkCsvContent.trim()}
+                                    variant="outline"
+                                    className="border-purple-500/50 text-purple-400 hover:bg-purple-500/10"
+                                >
+                                    Run Again
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    onClick={handleBulkUpload}
+                                    disabled={bulkStatus === 'running' || !bulkCsvContent.trim()}
+                                    className="bg-purple-500 hover:bg-purple-400 text-white font-bold"
+                                >
+                                    {bulkStatus === 'running' ? 'Uploading...' : 'Start Bulk Upload'}
+                                </Button>
+                                {bulkStatus === 'running' && (
+                                    <Button onClick={handleBulkStop} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                                        Stop
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </div>
                     {(bulkStatus === 'running' || bulkStatus === 'done') && bulkProgress.total > 0 && (
@@ -405,18 +423,35 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                     <CardTitle className="text-white/90">Run Import (combined.csv)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="flex gap-4">
-                        <Button
-                            onClick={handleStart}
-                            disabled={status === 'running'}
-                            className="bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-400 hover:to-green-400 text-black font-bold"
-                        >
-                            {status === 'running' ? 'Importing...' : status === 'done' ? '✓ Done — Run Again' : 'Start Import'}
-                        </Button>
-                        {status === 'running' && (
-                            <Button onClick={handleStop} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
-                                Stop
-                            </Button>
+                    <div className="flex gap-4 items-center">
+                        {status === 'done' ? (
+                            <>
+                                <span className="px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
+                                    ✓ Done
+                                </span>
+                                <Button
+                                    onClick={handleStart}
+                                    variant="outline"
+                                    className="border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10"
+                                >
+                                    Run Again
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button
+                                    onClick={handleStart}
+                                    disabled={status === 'running'}
+                                    className="bg-gradient-to-r from-cyan-500 to-green-500 hover:from-cyan-400 hover:to-green-400 text-black font-bold"
+                                >
+                                    {status === 'running' ? 'Importing...' : 'Start Import'}
+                                </Button>
+                                {status === 'running' && (
+                                    <Button onClick={handleStop} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                                        Stop
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </div>
 
