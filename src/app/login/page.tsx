@@ -25,14 +25,14 @@ export default function LoginPage() {
 
         try {
             const result = await login(formData);
-            if (result?.success && result.redirectTo) {
-                router.push(result.redirectTo);
-                return; // Prevent setting isLoading to false before navigation starts
-            }
             if (result?.error) {
                 setError(result.error);
             }
-        } catch (err) {
+        } catch (err: unknown) {
+            // Next.js redirect() throws - don't treat as error
+            if (err && typeof err === 'object' && 'digest' in err && String((err as { digest?: string }).digest).startsWith('NEXT_REDIRECT')) {
+                return;
+            }
             setError("An unexpected error occurred. Please try again.");
         } finally {
             setIsLoading(false);

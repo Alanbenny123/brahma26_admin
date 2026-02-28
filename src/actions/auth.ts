@@ -53,7 +53,7 @@ export async function login(formData: FormData) {
             sameSite: 'lax',
             secure: process.env.NODE_ENV === 'production',
         });
-        return { success: true, redirectTo: "/dashboard/users" };
+        redirect("/dashboard/users");
     } catch (error) {
         console.error("Login error:", error);
         const errorMsg = error instanceof Error ? error.message : String(error);
