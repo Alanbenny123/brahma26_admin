@@ -498,7 +498,7 @@ export async function bulkUploadBatch(
                 result.usersUpdated!++;
             }
         } catch (e: any) {
-            errors.push(`Row ${row.user_id}/${row.event_id}: ${e.message}`);
+            errors.push(`Row ${row.user_id}/${row.event_name}: ${e.message}`);
         }
     }
 
