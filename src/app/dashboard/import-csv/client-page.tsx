@@ -339,9 +339,9 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                     <div className="flex gap-4 items-center">
                         {bulkStatus === 'done' ? (
                             <>
-                                <span className="px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
+                                <Button disabled className="bg-green-500/20 border border-green-500/30 text-green-400 font-medium cursor-default hover:bg-green-500/20">
                                     ✓ Done
-                                </span>
+                                </Button>
                                 <Button
                                     onClick={handleBulkUpload}
                                     disabled={!bulkCsvContent.trim()}
@@ -426,9 +426,9 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                     <div className="flex gap-4 items-center">
                         {status === 'done' ? (
                             <>
-                                <span className="px-4 py-2 rounded-lg bg-green-500/20 border border-green-500/30 text-green-400 font-medium">
+                                <Button disabled className="bg-green-500/20 border border-green-500/30 text-green-400 font-medium cursor-default hover:bg-green-500/20">
                                     ✓ Done
-                                </span>
+                                </Button>
                                 <Button
                                     onClick={handleStart}
                                     variant="outline"
