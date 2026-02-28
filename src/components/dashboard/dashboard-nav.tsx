@@ -2,7 +2,7 @@
 
 import { logout } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
-import { Users, Ticket, Calendar, ClipboardCheck, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt, Shield, Award, Menu, X, MoreHorizontal, UserCircle, Activity, Upload } from "lucide-react";
+import { Users, Ticket, Calendar, LogOut, Home, RefreshCw, ImageIcon, Database, Receipt, Shield, Award, Menu, X, MoreHorizontal, UserCircle, Activity, Upload } from "lucide-react";
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTransition, useState } from 'react';
@@ -14,7 +14,6 @@ const mainNavItems = [
     { name: "Tickets", href: "/dashboard/tickets", icon: Ticket },
     { name: "Events", href: "/dashboard/events", icon: Calendar },
     { name: "User Events", href: "/dashboard/user-events", icon: UserCircle },
-    { name: "Attendance", href: "/dashboard/attendance", icon: ClipboardCheck },
     { name: "Transactions", href: "/dashboard/transactions", icon: Receipt },
 ];
 
@@ -22,8 +21,6 @@ const mainNavItems = [
 const moreNavItems = [
     { name: "Certificates", href: "/dashboard/certificates", icon: Award },
     { name: "Event Posters", href: "/dashboard/event-posters", icon: ImageIcon },
-    { name: "IEEE Records", href: "/dashboard/iee", icon: Database },
-    { name: "IEI Records", href: "/dashboard/iei", icon: Database },
     { name: "Admins", href: "/dashboard/admins", icon: Shield },
     { name: "Admin Logs", href: "/dashboard/admin-logs", icon: Activity },
     { name: "Sync", href: "/dashboard/sync", icon: RefreshCw },

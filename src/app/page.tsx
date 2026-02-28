@@ -2,14 +2,13 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Users, Ticket, Calendar, ClipboardCheck } from "lucide-react";
+import { Users, Ticket, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const links = [
   { name: "Users", icon: Users, href: "/dashboard/users", color: "from-blue-500 to-cyan-500" },
   { name: "Tickets", icon: Ticket, href: "/dashboard/tickets", color: "from-purple-500 to-pink-500" },
   { name: "Events", icon: Calendar, href: "/dashboard/events", color: "from-amber-400 to-orange-500" },
-  { name: "Attendance", icon: ClipboardCheck, href: "/dashboard/attendance", color: "from-emerald-400 to-green-500" },
 ];
 
 export default function Home() {

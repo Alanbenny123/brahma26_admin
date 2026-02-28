@@ -70,11 +70,12 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         { key: "active", label: "Active" },
     ];
 
-    // Helper function to get usernames for a ticket
-    const getUsernamesForTicket = (studIds?: string[]): string => {
-        if (!studIds || studIds.length === 0) return '-';
+    // Helper function to get usernames for a ticket (handles stud_id as string or array)
+    const getUsernamesForTicket = (studIds?: string[] | string): string => {
+        const ids = Array.isArray(studIds) ? studIds : (studIds ? [String(studIds)] : []);
+        if (ids.length === 0) return '-';
 
-        const usernames = studIds.map(studId => {
+        const usernames = ids.map(studId => {
             const user = users.find((u: any) => u.$id === studId);
             return user?.name || user?.email?.split('@')[0] || studId;
         }).join(', ');
@@ -118,11 +119,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         if (selectedItem) {
             try {
                 // If ticket has assigned users, remove ticket from their records
-                if (selectedItem.stud_id && selectedItem.stud_id.length > 0) {
-                    // Find users in the current users list that are assigned to this ticket
-                    const assignedUsers = users.filter(user =>
-                        selectedItem.stud_id?.includes(user.$id)
-                    );
+                const studIdsArr = Array.isArray(selectedItem.stud_id) ? selectedItem.stud_id : (selectedItem.stud_id ? [String(selectedItem.stud_id)] : []);
+                if (studIdsArr.length > 0) {
+                    const assignedUsers = users.filter(user => studIdsArr.includes(user.$id));
 
                     // Update each user to remove this ticket ID from their tickets array
                     for (const user of assignedUsers) {
@@ -310,7 +309,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
         const inactiveTickets = totalTickets - activeTickets;
 
         // Calculate total tickets issued (sum of all stud_id arrays)
-        const totalIssued = initialData.reduce((sum, t) => sum + (t.stud_id?.length || 0), 0);
+        const totalIssued = initialData.reduce((sum, t) => sum + (Array.isArray(t.stud_id) ? t.stud_id.length : t.stud_id ? 1 : 0), 0);
 
         // Distribution for Pie Chart
         const chartData = [
@@ -357,10 +356,9 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 // For each ticket to delete
                 for (const item of items) {
                     // If ticket has assigned users, remove ticket from their records
-                    if (item.stud_id && item.stud_id.length > 0) {
-                        const assignedUsers = users.filter(user =>
-                            item.stud_id?.includes(user.$id)
-                        );
+                    const itemStudIds = Array.isArray(item.stud_id) ? item.stud_id : (item.stud_id ? [String(item.stud_id)] : []);
+                    if (itemStudIds.length > 0) {
+                        const assignedUsers = users.filter(user => itemStudIds.includes(user.$id));
 
                         // Update each user to remove this ticket ID
                         for (const user of assignedUsers) {
@@ -396,7 +394,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatsCard
                     title="Total Issued"
-                    value={initialData.reduce((sum, t) => sum + (t.stud_id?.length || 0), 0)}
+                    value={initialData.reduce((sum, t) => sum + (Array.isArray(t.stud_id) ? t.stud_id.length : t.stud_id ? 1 : 0), 0)}
                     icon={Ticket}
                     color="text-purple-500"
                     subValue="Student assignments"
@@ -424,7 +422,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 flex items-center justify-between">
                     <div className="text-sm text-blue-300">
                         Selected: <span className="font-semibold">{selectedItem.team_name || selectedItem.$id}</span>
-                        ({selectedItem.stud_id?.length || 0} students assigned)
+                        ({(Array.isArray(selectedItem?.stud_id) ? selectedItem.stud_id : []).length} students assigned)
                     </div>
                     <div className="flex gap-2">
                         <Button
@@ -560,7 +558,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                     </div>
 
                     <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded text-sm text-blue-300">
-                        Currently assigned: {selectedItem?.stud_id?.length || 0} students
+                        Currently assigned: {(Array.isArray(selectedItem?.stud_id) ? selectedItem.stud_id : []).length} students
                     </div>
 
                     <p className="text-xs text-gray-500 italic">* Backend logic will duplicate the Payment ID into the required transition_id field.</p>
@@ -610,8 +608,8 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
                         />
                     </div>
                     <div className="bg-orange-500/10 border border-orange-500/30 p-3 rounded text-sm text-orange-300">
-                        {selectedItem?.stud_id && selectedItem.stud_id.length > 0 ? (
-                            <>Assigned students: {selectedItem.stud_id.join(', ')}</>
+                        {(Array.isArray(selectedItem?.stud_id) ? selectedItem.stud_id : []).length > 0 ? (
+                            <>Assigned students: {(Array.isArray(selectedItem?.stud_id) ? selectedItem.stud_id : []).join(', ')}</>
                         ) : (
                             <>No students currently assigned</>
                         )}
@@ -714,7 +712,7 @@ export default function ClientTicketsPage({ initialData, events, users, total }:
 
                     {selectedItem && (
                         <div className="bg-blue-500/10 border border-blue-500/30 p-3 rounded text-sm text-blue-300">
-                            Students assigned: {selectedItem.stud_id?.length || 0}
+                            Students assigned: {(Array.isArray(selectedItem?.stud_id) ? selectedItem.stud_id : []).length}
                             <br />
                             <span className="text-xs text-blue-400">Use "Issue Ticket" or "Cancel Ticket" buttons to manage students</span>
                         </div>

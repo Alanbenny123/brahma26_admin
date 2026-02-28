@@ -24,13 +24,12 @@
  * → URLs stored in Appwrite (synced to Firebase Firestore)
  */
 
-import { getUsers, getEvents, getTickets, getTransactions, getAttendance } from '@/actions/appwrite';
+import { getUsers, getEvents, getTickets, getTransactions } from '@/actions/appwrite';
 import {
     getFirestoreUsers,
     getFirestoreEvents,
     getFirestoreTickets,
     getFirestoreTransactions,
-    getFirestoreAttendance,
 } from '@/actions/firebase';
 
 // Helper to check if Appwrite is available
@@ -248,56 +247,8 @@ export async function fetchTransactions(fetchAll: boolean = false) {
     }
 }
 
-// Fetch Attendance with smart fallback
-export async function fetchAttendance(fetchAll: boolean = false) {
-    try {
-        const isAppwriteAvailable = await checkAppwriteAvailable();
-        
-        if (isAppwriteAvailable) {
-            const { documents, total } = await getAttendance(fetchAll);
-            
-            const attendance = documents.map((record: any) => ({
-                ...record,
-                id: record.$id,
-                event_id: record.event_id,
-                user_id: record.user_id,
-                ticket_id: record.ticket_id,
-                status: record.status,
-                checked_in_at: record.checked_in_at,
-                createdAt: record.$createdAt,
-                updatedAt: record.$updatedAt,
-            }));
-            
-            return {
-                attendance,
-                total,
-                source: 'appwrite' as const,
-                success: true,
-            };
-        } else {
-            console.log('Fetching from Firebase (Appwrite unavailable)');
-            const { attendance, total } = await getFirestoreAttendance();
-            return {
-                attendance,
-                total,
-                source: 'firebase' as const,
-                success: true,
-            };
-        }
-    } catch (error) {
-        console.error('Error fetching attendance:', error);
-        return {
-            attendance: [],
-            total: 0,
-            source: 'error' as const,
-            success: false,
-            error: 'Failed to fetch attendance from both sources',
-        };
-    }
-}
-
 // Generic fetch with type parameter
-export async function fetchData<T extends 'users' | 'events' | 'tickets' | 'transactions' | 'attendance'>(
+export async function fetchData<T extends 'users' | 'events' | 'tickets' | 'transactions'>(
     type: T,
     fetchAll: boolean = false
 ): Promise<any> {
@@ -310,8 +261,6 @@ export async function fetchData<T extends 'users' | 'events' | 'tickets' | 'tran
             return await fetchTickets(fetchAll);
         case 'transactions':
             return await fetchTransactions(fetchAll);
-        case 'attendance':
-            return await fetchAttendance(fetchAll);
         default:
             return {
                 data: [],

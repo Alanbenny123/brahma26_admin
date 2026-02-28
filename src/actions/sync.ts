@@ -24,17 +24,14 @@
  * Admin UI → Appwrite (primary) → [Real-time sync] → Firebase (backup)
  */
 
-import { getUsers, getTickets, getEvents, getAttendance, getTransactions, getIEE, getIEI } from '@/actions/appwrite';
+import { getUsers, getTickets, getEvents, getTransactions } from '@/actions/appwrite';
 import { getAdmins } from '@/actions/auth';
 import {
     upsertFirestoreUser,
     upsertFirestoreEvent,
     upsertFirestoreTicket,
     upsertFirestoreTransaction,
-    upsertFirestoreAttendance,
     upsertFirestoreAdmin,
-    upsertFirestoreIEE,
-    upsertFirestoreIEI,
     getFirestoreUsers,
     updateFirestoreUser,
     deleteFirestoreUser,
@@ -52,10 +49,7 @@ export async function syncAllToFirebase() {
             syncEventsToFirestore(),
             syncTicketsToFirestore(),
             syncTransactionsToFirestore(),
-            syncAttendanceToFirestore(),
             syncAdminsToFirestore(),
-            syncIEEToFirestore(),
-            syncIEIToFirestore(),
         ]);
 
         return {
@@ -65,10 +59,7 @@ export async function syncAllToFirebase() {
                 events: results[1],
                 tickets: results[2],
                 transactions: results[3],
-                attendance: results[4],
-                admins: results[5],
-                iee: results[6],
-                iei: results[7],
+                admins: results[4],
             }
         };
     } catch (error) {
@@ -291,45 +282,8 @@ export async function syncTransactionsToFirestore() {
     }
 }
 
-// Sync Attendance to Firestore (with upsert - no duplicates)
-export async function syncAttendanceToFirestore() {
-    try {
-        const { documents: appwriteAttendance } = await getAttendance();
-
-        let synced = 0;
-        let updated = 0;
-        let failed = 0;
-
-        for (const attendance of appwriteAttendance) {
-            const attendanceData = {
-                appwriteId: attendance.$id,
-                user_id_appwrite: attendance.user_id || '', // Appwrite user ID - will be mapped to Firebase user doc ID
-                event_id_appwrite: attendance.event_id || '', // Appwrite event ID - will be mapped to Firebase event doc ID
-                checked_in: attendance.checked_in || false,
-                timestamp: attendance.timestamp || attendance.$createdAt,
-            };
-
-            const result = await upsertFirestoreAttendance(attendanceData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
-                }
-            } else {
-                failed++;
-            }
-        }
-
-        return { synced, updated, failed, total: appwriteAttendance.length };
-    } catch (error) {
-        console.error('Error syncing attendance:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync attendance' };
-    }
-}
-
 /** Sync a single batch (offset/limit) for periodic 15s sync - avoids 504 timeout */
-export type SyncCollection = 'users' | 'events' | 'tickets' | 'transactions' | 'attendance' | 'admins' | 'iee' | 'iei';
+export type SyncCollection = 'users' | 'events' | 'tickets' | 'transactions' | 'admins';
 
 export async function syncSingleBatch(
     collection: SyncCollection,
@@ -440,38 +394,9 @@ export async function syncSingleBatch(
             return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
         }
 
-        if (collection === 'attendance') {
-            const { documents: batch, total } = await getAttendance(false, { limit, offset });
-            let synced = 0, updated = 0, failed = 0;
-            for (const attendance of batch) {
-                const attendanceData = {
-                    appwriteId: attendance.$id,
-                    user_id_appwrite: attendance.user_id || '',
-                    event_id_appwrite: attendance.event_id || '',
-                    checked_in: attendance.checked_in || false,
-                    timestamp: attendance.timestamp || attendance.$createdAt,
-                };
-                const result = await upsertFirestoreAttendance(attendanceData);
-                if (result.success) {
-                    if (result.action === 'created') synced++;
-                    else if (result.action === 'updated') updated++;
-                } else failed++;
-            }
-            const nextOffset = offset + batch.length;
-            return { synced, updated, failed, total, nextOffset, done: nextOffset >= total };
-        }
-
         // Small collections: full sync in one go
         if (collection === 'admins') {
             const result = await syncAdminsToFirestore();
-            return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
-        }
-        if (collection === 'iee') {
-            const result = await syncIEEToFirestore();
-            return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
-        }
-        if (collection === 'iei') {
-            const result = await syncIEIToFirestore();
             return { ...result, total: result.total ?? 0, nextOffset: result.total ?? 0, done: true };
         }
 
@@ -491,7 +416,7 @@ export async function syncSingleBatch(
 }
 
 // Sync single item by ID and type
-export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'transactions' | 'attendance', appwriteId: string) {
+export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'transactions', appwriteId: string) {
     try {
         let result;
         
@@ -554,21 +479,6 @@ export async function syncSingleItem(type: 'users' | 'events' | 'tickets' | 'tra
             };
             result = await upsertFirestoreTransaction(transactionData);
         }
-        else if (type === 'attendance') {
-            const { documents: attendance } = await getAttendance();
-            const record = attendance.find((a: any) => a.$id === appwriteId);
-            if (!record) return { success: false, error: 'Attendance not found' };
-            
-            const attendanceData = {
-                appwriteId: record.$id,
-                user_id_appwrite: record.user_id || '',
-                event_id_appwrite: record.event_id || '',
-                checked_in: record.checked_in || false,
-                timestamp: record.timestamp || record.$createdAt,
-            };
-            result = await upsertFirestoreAttendance(attendanceData);
-        }
-
         return result || { success: false, error: 'Unknown type' };
     } catch (error) {
         console.error('Error syncing single item:', error);
@@ -615,74 +525,3 @@ export async function syncAdminsToFirestore() {
     }
 }
 
-// Sync IEE to Firestore (with upsert - no duplicates)
-export async function syncIEEToFirestore() {
-    try {
-        const { documents: appwriteIEE } = await getIEE(true); // Fetch all IEE records
-
-        let synced = 0;
-        let updated = 0;
-        let failed = 0;
-
-        for (const iee of appwriteIEE) {
-            const ieeData = {
-                appwriteId: iee.$id,
-                mebership_id: iee.mebership_id || '',
-                validity: iee.validity || false,
-                createdAt: iee.$createdAt,
-            };
-
-            const result = await upsertFirestoreIEE(ieeData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
-                }
-            } else {
-                failed++;
-            }
-        }
-
-        return { synced, updated, failed, total: appwriteIEE.length };
-    } catch (error) {
-        console.error('Error syncing IEE:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync IEE' };
-    }
-}
-
-// Sync IEI to Firestore (with upsert - no duplicates)
-export async function syncIEIToFirestore() {
-    try {
-        const { documents: appwriteIEI } = await getIEI(true); // Fetch all IEI records
-
-        let synced = 0;
-        let updated = 0;
-        let failed = 0;
-
-        for (const iei of appwriteIEI) {
-            const ieiData = {
-                appwriteId: iei.$id,
-                mebership_id: iei.mebership_id || '',
-                validity: iei.validity || false,
-                createdAt: iei.$createdAt,
-            };
-
-            const result = await upsertFirestoreIEI(ieiData);
-            if (result.success) {
-                if (result.action === 'created') {
-                    synced++;
-                } else if (result.action === 'updated') {
-                    updated++;
-                }
-            } else {
-                failed++;
-            }
-        }
-
-        return { synced, updated, failed, total: appwriteIEI.length };
-    } catch (error) {
-        console.error('Error syncing IEI:', error);
-        return { synced: 0, updated: 0, failed: 0, error: 'Failed to sync IEI' };
-    }
-}

@@ -17,7 +17,7 @@ export default function SyncPage() {
     const [showProductionWarning, setShowProductionWarning] = useState(false);
 
     // Periodic sync every 6 sec (small batches to avoid 504)
-    const PERIODIC_COLLECTIONS = ['users', 'events', 'tickets', 'transactions', 'attendance', 'admins', 'iee', 'iei'] as const;
+    const PERIODIC_COLLECTIONS = ['users', 'events', 'tickets', 'transactions', 'admins'] as const;
     const [periodicSyncEnabled, setPeriodicSyncEnabled] = useState(false);
     const [periodicProgress, setPeriodicProgress] = useState<{ collection: string; current: number; total: number; nextRunIn: number } | null>(null);
     const periodicStateRef = useRef({ collectionIndex: 0, offset: 0 });
@@ -222,23 +222,6 @@ export default function SyncPage() {
         }
     };
 
-    const handleSyncAttendance = async () => {
-        if (isProduction) {
-            setShowProductionWarning(true);
-            return;
-        }
-        setSyncing(true);
-        try {
-            const { syncAttendanceToFirestore } = await import('@/actions/sync');
-            const result = await syncAttendanceToFirestore();
-            setResults({ success: true, results: { attendance: result } });
-        } catch (error) {
-            setResults({ success: false, error: 'Failed to sync attendance' });
-        } finally {
-            setSyncing(false);
-        }
-    };
-
     const handleSyncAdmins = async () => {
         if (isProduction) {
             setShowProductionWarning(true);
@@ -251,40 +234,6 @@ export default function SyncPage() {
             setResults({ success: true, results: { admins: result } });
         } catch (error) {
             setResults({ success: false, error: 'Failed to sync admins' });
-        } finally {
-            setSyncing(false);
-        }
-    };
-
-    const handleSyncIEE = async () => {
-        if (isProduction) {
-            setShowProductionWarning(true);
-            return;
-        }
-        setSyncing(true);
-        try {
-            const { syncIEEToFirestore } = await import('@/actions/sync');
-            const result = await syncIEEToFirestore();
-            setResults({ success: true, results: { iee: result } });
-        } catch (error) {
-            setResults({ success: false, error: 'Failed to sync IEE' });
-        } finally {
-            setSyncing(false);
-        }
-    };
-
-    const handleSyncIEI = async () => {
-        if (isProduction) {
-            setShowProductionWarning(true);
-            return;
-        }
-        setSyncing(true);
-        try {
-            const { syncIEIToFirestore } = await import('@/actions/sync');
-            const result = await syncIEIToFirestore();
-            setResults({ success: true, results: { iei: result } });
-        } catch (error) {
-            setResults({ success: false, error: 'Failed to sync IEI' });
         } finally {
             setSyncing(false);
         }
@@ -528,16 +477,6 @@ export default function SyncPage() {
                         </Button>
 
                         <Button
-                            onClick={handleSyncAttendance}
-                            disabled={syncing}
-                            variant="outline"
-                            className="border-green-500/50 hover:bg-green-500/10"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                            Sync Attendance Only
-                        </Button>
-
-                        <Button
                             onClick={handleSyncAdmins}
                             disabled={syncing}
                             variant="outline"
@@ -547,25 +486,6 @@ export default function SyncPage() {
                             Sync Admins Only
                         </Button>
 
-                        <Button
-                            onClick={handleSyncIEE}
-                            disabled={syncing}
-                            variant="outline"
-                            className="border-indigo-500/50 hover:bg-indigo-500/10"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                            Sync IEE Only
-                        </Button>
-
-                        <Button
-                            onClick={handleSyncIEI}
-                            disabled={syncing}
-                            variant="outline"
-                            className="border-violet-500/50 hover:bg-violet-500/10"
-                        >
-                            <RefreshCw className={`w-4 h-4 mr-2 ${syncing ? 'animate-spin' : ''}`} />
-                            Sync IEI Only
-                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -630,17 +550,6 @@ export default function SyncPage() {
                                         </p>
                                     </div>
                                 )}
-                                {results.results.attendance && (
-                                    <div className="p-4 bg-green-500/10 rounded-lg">
-                                        <h3 className="font-semibold text-green-400 mb-2">Attendance</h3>
-                                        <p className="text-white/70">
-                                            Created: {results.results.attendance.synced} | 
-                                            Updated: {results.results.attendance.updated} | 
-                                            Failed: {results.results.attendance.failed} | 
-                                            Total: {results.results.attendance.total}
-                                        </p>
-                                    </div>
-                                )}
                                 {results.results.admins && (
                                     <div className="p-4 bg-red-500/10 rounded-lg">
                                         <h3 className="font-semibold text-red-400 mb-2">Admins</h3>
@@ -649,28 +558,6 @@ export default function SyncPage() {
                                             Updated: {results.results.admins.updated} | 
                                             Failed: {results.results.admins.failed} | 
                                             Total: {results.results.admins.total}
-                                        </p>
-                                    </div>
-                                )}
-                                {results.results.iee && (
-                                    <div className="p-4 bg-indigo-500/10 rounded-lg">
-                                        <h3 className="font-semibold text-indigo-400 mb-2">IEE</h3>
-                                        <p className="text-white/70">
-                                            Created: {results.results.iee.synced} | 
-                                            Updated: {results.results.iee.updated} | 
-                                            Failed: {results.results.iee.failed} | 
-                                            Total: {results.results.iee.total}
-                                        </p>
-                                    </div>
-                                )}
-                                {results.results.iei && (
-                                    <div className="p-4 bg-violet-500/10 rounded-lg">
-                                        <h3 className="font-semibold text-violet-400 mb-2">IEI</h3>
-                                        <p className="text-white/70">
-                                            Created: {results.results.iei.synced} | 
-                                            Updated: {results.results.iei.updated} | 
-                                            Failed: {results.results.iei.failed} | 
-                                            Total: {results.results.iei.total}
                                         </p>
                                     </div>
                                 )}
@@ -698,7 +585,7 @@ export default function SyncPage() {
                             <li>Prevents duplicates by checking Appwrite IDs</li>
                             <li>Useful for data synchronization and backup</li>
                             <li>Can sync all at once or by collection type</li>
-                            <li>Supports: Users, Events, Tickets, Transactions, Attendance, Admins, IEE, IEI</li>
+                            <li>Supports: Users, Events, Tickets, Transactions, Admins</li>
                         </ul>
                     </div>
 

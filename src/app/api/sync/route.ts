@@ -11,13 +11,11 @@ import {
     upsertFirestoreTransaction,
     updateFirestoreTransaction,
     deleteFirestoreTransaction,
-    upsertFirestoreAttendance,
-    deleteFirestoreAttendance,
 } from '@/actions/firebase';
 
 // Optimize: Type definitions for better type safety
 interface SyncRequestBody {
-    type: 'users' | 'events' | 'tickets' | 'transactions' | 'attendance';
+    type: 'users' | 'events' | 'tickets' | 'transactions';
     action: 'create' | 'update' | 'delete';
     data?: any;
     id?: string;
@@ -44,11 +42,6 @@ const operationMap = {
         create: upsertFirestoreTransaction,
         update: updateFirestoreTransaction,
         delete: deleteFirestoreTransaction,
-    },
-    attendance: {
-        create: upsertFirestoreAttendance,
-        update: (id: string, data: any) => upsertFirestoreAttendance({ ...data, appwriteId: id }),
-        delete: deleteFirestoreAttendance,
     },
 } as const;
 
