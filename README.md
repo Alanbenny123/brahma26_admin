@@ -6,7 +6,6 @@ A modern, full-featured admin dashboard for managing the **Brahma Ashwamedha 202
 ```bash 
 npm install
 ```
-
 ### 2. Set Up Environment Variables
 Create a`.env.local` file in the root directory:
 ```env
