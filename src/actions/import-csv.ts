@@ -287,35 +287,101 @@ export async function addCombinedEntry(data: {
     }
 }
 
-/** Bulk upload format: event_id, user_id, fest (required); payment_id, transaction_id, ticket_id (optional, auto-gen) */
+/** Bulk upload supports two formats:
+ *  Format A: ticket_id, student_id, event_name, Fest
+ *  Format B: event_id, user_id, fest, payment_id?, transaction_id?, ticket_id?
+ */
 export interface BulkUploadRow {
-    event_id: string;
+    ticket_id: string;
     user_id: string;
+    event_name: string;
     fest: string;
     payment_id?: string;
     transaction_id?: string;
-    ticket_id?: string;
+}
+
+function norm(s: string): string {
+    return s.replace(/\s+/g, '').toLowerCase().replace(/_/g, '');
+}
+
+function colIndex(headers: string[], ...names: string[]): number {
+    for (const n of names) {
+        const idx = headers.findIndex(h => norm(h) === norm(n) || norm(h).replace(/_/g, '') === norm(n));
+        if (idx >= 0) return idx;
+    }
+    return -1;
 }
 
 function parseBulkUploadCSV(csvContent: string): BulkUploadRow[] {
     const lines = csvContent.split('\n').filter(l => l.trim());
     const rows: BulkUploadRow[] = [];
-    const header = (lines[0] || '').toLowerCase();
-    const hasHeader = header.includes('event_id') || header.includes('user_id');
+    const headerRow = (lines[0] || '').split(',').map(h => h.trim());
+    const hasHeader = headerRow.some(h =>
+        /ticket_id|event_id|student_id|user_id|event_name|fest/i.test(norm(h))
+    );
     const start = hasHeader ? 1 : 0;
+    const headers = hasHeader ? headerRow : [];
+
+    const idxTicket = colIndex(headers, 'ticket_id', 'ticketid');
+    const idxStudent = colIndex(headers, 'student_id', 'user_id', 'studentid', 'userid');
+    const idxEvent = colIndex(headers, 'event_name', 'eventname', 'event');
+    const idxFest = colIndex(headers, 'fest', 'Fest');
+    const idxEventId = colIndex(headers, 'event_id', 'eventid');
+    const idxPayment = colIndex(headers, 'payment_id', 'paymentid');
+    const idxTransaction = colIndex(headers, 'transaction_id', 'transactions_id', 'transactionid');
+
+    const isFormatA = hasHeader && idxTicket >= 0 && idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0;
+    const isFormatB = hasHeader && idxEventId >= 0 && idxStudent >= 0 && idxFest >= 0 && (idxTicket < 0 || idxEvent < 0);
+
+    const get = (cols: string[], idx: number): string => (idx >= 0 && cols[idx] !== undefined ? (cols[idx] || '').trim() : '');
 
     for (let i = start; i < lines.length; i++) {
         const cols = lines[i].split(',').map(c => (c || '').trim());
-        const event_id = (cols[0] || '').trim();
-        const user_id = (cols[1] || '').trim().toLowerCase();
-        const fest = (cols[2] || '').trim();
-        const payment_id = (cols[3] || '').trim() || undefined;
-        const transaction_id = (cols[4] || '').trim() || undefined;
-        const ticket_id = (cols[5] || '').trim() || undefined;
+        let ticket_id: string;
+        let user_id: string;
+        let event_name: string;
+        let fest: string;
+        let payment_id: string | undefined;
+        let transaction_id: string | undefined;
 
-        if (!event_id || !user_id || !fest) continue;
+        if (isFormatA || (idxTicket >= 0 && idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0)) {
+            ticket_id = get(cols, idxTicket);
+            user_id = get(cols, idxStudent).toLowerCase();
+            event_name = get(cols, idxEvent);
+            fest = get(cols, idxFest);
+            payment_id = get(cols, idxPayment) || undefined;
+            transaction_id = get(cols, idxTransaction) || undefined;
+        } else if (isFormatB || (idxEventId >= 0 && idxStudent >= 0 && idxFest >= 0)) {
+            const event_id = get(cols, idxEventId);
+            user_id = get(cols, idxStudent).toLowerCase();
+            fest = get(cols, idxFest);
+            payment_id = get(cols, idxPayment) || undefined;
+            transaction_id = get(cols, idxTransaction) || undefined;
+            ticket_id = get(cols, idxTicket) || randomHexId();
+            event_name = event_id;
+        } else {
+            const firstColCount = cols.length;
+            if (firstColCount === 4) {
+                ticket_id = cols[0] || '';
+                user_id = (cols[1] || '').toLowerCase();
+                event_name = cols[2] || '';
+                fest = cols[3] || '';
+                payment_id = undefined;
+                transaction_id = undefined;
+            } else {
+                ticket_id = (cols[5] || '').trim() || randomHexId();
+                user_id = (cols[1] || '').trim().toLowerCase();
+                event_name = (cols[0] || '').trim();
+                fest = (cols[2] || '').trim();
+                payment_id = (cols[3] || '').trim() || undefined;
+                transaction_id = (cols[4] || '').trim() || undefined;
+            }
+        }
 
-        rows.push({ event_id, user_id, fest, payment_id, transaction_id, ticket_id });
+        if (!user_id || !event_name || !fest) continue;
+        if (isFormatA && !ticket_id) continue;
+
+        rows.push({ ticket_id: ticket_id || randomHexId(), user_id, event_name, fest, payment_id, transaction_id });
     }
     return rows;
 }
@@ -358,8 +424,8 @@ export async function bulkUploadBatch(
         try {
             const transaction_id = row.transaction_id || randomHexId();
             const payment_id = row.payment_id || `pay_${randomHexId().toUpperCase()}`;
-            const ticket_id = row.ticket_id || randomHexId();
-            const event_name = eventMap.get(row.event_id) || row.event_id;
+            const ticket_id = row.ticket_id;
+            const event_name = eventMap.get(row.event_name) || row.event_name;
 
             // Upsert ticket
             const ticketRef = doc(db, 'tickets', ticket_id);
@@ -374,7 +440,7 @@ export async function bulkUploadBatch(
                 result.ticketsUpdated!++;
             } else {
                 await setDoc(ticketRef, {
-                    event_id: row.event_id,
+                    event_id: ticket_id,
                     event_name,
                     fest: row.fest,
                     stud_id: [row.user_id],

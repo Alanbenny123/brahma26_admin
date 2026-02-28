@@ -311,9 +311,9 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                 <CardHeader>
                     <CardTitle className="text-white/90">Bulk Upload</CardTitle>
                     <p className="text-sm text-white/50 mt-1">
-                        CSV format: <code className="bg-white/10 px-1 rounded">event_id, user_id, fest</code> (required). 
-                        Optional: <code className="bg-white/10 px-1 rounded">payment_id, transaction_id, ticket_id</code> — auto-generated if empty. 
-                        user_id stored in lowercase.
+                        Format A: <code className="bg-white/10 px-1 rounded">ticket_id, student_id, event_name, Fest</code> (all required). 
+                        Format B: <code className="bg-white/10 px-1 rounded">event_id, user_id, fest</code> + optional payment_id, transaction_id, ticket_id. 
+                        student_id/user_id stored in lowercase.
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -327,11 +327,11 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                         </label>
                     </div>
                     <div className="space-y-2">
-                        <label className="text-sm text-gray-400">Or paste CSV (event_id, user_id, fest, payment_id?, transaction_id?, ticket_id?)</label>
+                        <label className="text-sm text-gray-400">Or paste CSV (ticket_id, student_id, event_name, Fest)</label>
                         <textarea
                             value={bulkCsvContent}
                             onChange={(e) => setBulkCsvContent(e.target.value)}
-                            placeholder={'event_id,user_id,fest,payment_id,transaction_id,ticket_id\nevt_001,brah_123,BRAHMA,,,\nevt_002,ash_456,ASHWAMEDHA,pay_xyz,tx_abc,tkt_def'}
+                            placeholder={'ticket_id,student_id,event_name,Fest\n698312fb001a4f2f2a6d,brah_62441,Maths Escape Carnival,BRAHMA\n698312fb001a4f2f2a6d,ash_98619,Maths Escape Carnival,BRAHMA'}
                             rows={5}
                             className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90 font-mono placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                         />
