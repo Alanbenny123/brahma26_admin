@@ -3,7 +3,7 @@ A modern, full-featured admin dashboard for managing the **Brahma Ashwamedha 202
 --
 ## 🚀 Quick Start
 ### 1. Install Dependencies
-```bash
+```bash 
 npm install
 ``` 
 ### 2. Set Up Environment Variables
