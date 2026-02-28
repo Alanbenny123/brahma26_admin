@@ -330,7 +330,7 @@ function parseBulkUploadCSV(csvContent: string): BulkUploadRow[] {
     const idxPayment = colIndex(headers, 'payment_id', 'paymentid');
     const idxTransaction = colIndex(headers, 'transaction_id', 'transactions_id', 'transactionid');
 
-    const isFormatA = hasHeader && idxTicket >= 0 && idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0;
+    const isFormatA = hasHeader && idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0;
     const isFormatB = hasHeader && idxEventId >= 0 && idxStudent >= 0 && idxFest >= 0 && (idxTicket < 0 || idxEvent < 0);
 
     const get = (cols: string[], idx: number): string => (idx >= 0 && cols[idx] !== undefined ? (cols[idx] || '').trim() : '');
@@ -344,8 +344,8 @@ function parseBulkUploadCSV(csvContent: string): BulkUploadRow[] {
         let payment_id: string | undefined;
         let transaction_id: string | undefined;
 
-        if (isFormatA || (idxTicket >= 0 && idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0)) {
-            ticket_id = get(cols, idxTicket);
+        if (isFormatA || (idxStudent >= 0 && idxEvent >= 0 && idxFest >= 0)) {
+            ticket_id = get(cols, idxTicket) || randomHexId();
             user_id = get(cols, idxStudent).toLowerCase();
             event_name = get(cols, idxEvent);
             fest = get(cols, idxFest);
@@ -379,7 +379,6 @@ function parseBulkUploadCSV(csvContent: string): BulkUploadRow[] {
         }
 
         if (!user_id || !event_name || !fest) continue;
-        if (isFormatA && !ticket_id) continue;
 
         rows.push({ ticket_id: ticket_id || randomHexId(), user_id, event_name, fest, payment_id, transaction_id });
     }
@@ -422,9 +421,9 @@ export async function bulkUploadBatch(
 
     for (const row of batch) {
         try {
-            const transaction_id = row.transaction_id || randomHexId();
-            const payment_id = row.payment_id || `pay_${randomHexId().toUpperCase()}`;
-            const ticket_id = row.ticket_id;
+            const transaction_id = (row.transaction_id || '').trim() || randomHexId();
+            const payment_id = (row.payment_id || '').trim() || `pay_${randomHexId().toUpperCase()}`;
+            const ticket_id = (row.ticket_id || '').trim() || randomHexId();
             const event_name = eventMap.get(row.event_name) || row.event_name;
 
             // Upsert ticket

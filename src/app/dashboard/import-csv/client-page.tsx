@@ -311,9 +311,9 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                 <CardHeader>
                     <CardTitle className="text-white/90">Bulk Upload</CardTitle>
                     <p className="text-sm text-white/50 mt-1">
-                        Format A: <code className="bg-white/10 px-1 rounded">ticket_id, student_id, event_name, Fest</code> (all required). 
+                        Format A: <code className="bg-white/10 px-1 rounded">student_id, event_name, Fest</code> required; <code className="bg-white/10 px-1 rounded">ticket_id</code> optional (auto-generated). 
                         Format B: <code className="bg-white/10 px-1 rounded">event_id, user_id, fest</code> + optional payment_id, transaction_id, ticket_id. 
-                        student_id/user_id stored in lowercase.
+                        Column order doesn&apos;t matter if headers are given. student_id/user_id stored in lowercase.
                     </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
