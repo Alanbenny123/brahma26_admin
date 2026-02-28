@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
-import { importCSVBatch, getCSVRowCount, addCombinedEntry } from '@/actions/import-csv';
-import { Send } from 'lucide-react';
+import { importCSVBatch, getCSVRowCount, addCombinedEntry, bulkUploadBatch, getBulkUploadRowCount } from '@/actions/import-csv';
+import { Send, Upload } from 'lucide-react';
 
 interface ClientImportCSVPageProps {
     eventNames?: string[];
@@ -46,6 +46,18 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
     const [errorLog, setErrorLog] = useState<string[]>([]);
     const abortRef = useRef(false);
     const BATCH_SIZE = 100;
+
+    // Bulk upload (event_id, user_id, fest required; payment_id, transaction_id, ticket_id optional)
+    const [bulkCsvContent, setBulkCsvContent] = useState('');
+    const [bulkStatus, setBulkStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle');
+    const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
+    const [bulkCumulative, setBulkCumulative] = useState<BatchResult>({
+        ticketsCreated: 0, ticketsUpdated: 0,
+        transactionsCreated: 0, transactionsSkipped: 0,
+        usersUpdated: 0, errors: [],
+    });
+    const [bulkErrorLog, setBulkErrorLog] = useState<string[]>([]);
+    const bulkAbortRef = useRef(false);
 
     const handleStart = async () => {
         abortRef.current = false;
@@ -91,6 +103,55 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
     const handleStop = () => {
         abortRef.current = true;
         setStatus('idle');
+    };
+
+    const handleBulkFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => setBulkCsvContent(String(reader.result));
+        reader.readAsText(file);
+        e.target.value = '';
+    };
+
+    const handleBulkUpload = async () => {
+        const content = bulkCsvContent.trim();
+        if (!content) return;
+        bulkAbortRef.current = false;
+        setBulkStatus('running');
+        setBulkErrorLog([]);
+        setBulkCumulative({ ticketsCreated: 0, ticketsUpdated: 0, transactionsCreated: 0, transactionsSkipped: 0, usersUpdated: 0, errors: [] });
+
+        const total = await getBulkUploadRowCount(content);
+        setBulkProgress({ current: 0, total });
+
+        let offset = 0;
+        let done = false;
+
+        while (!done && !bulkAbortRef.current) {
+            const { result, nextOffset, done: batchDone, totalRows, errors } = await bulkUploadBatch(content, offset, BATCH_SIZE);
+
+            setBulkCumulative(prev => ({
+                ticketsCreated: prev.ticketsCreated + (result.ticketsCreated || 0),
+                ticketsUpdated: prev.ticketsUpdated + (result.ticketsUpdated || 0),
+                transactionsCreated: prev.transactionsCreated + (result.transactionsCreated || 0),
+                transactionsSkipped: prev.transactionsSkipped + (result.transactionsSkipped || 0),
+                usersUpdated: prev.usersUpdated + (result.usersUpdated || 0),
+                errors: [],
+            }));
+            if (errors?.length) setBulkErrorLog(prev => [...prev, ...errors]);
+
+            setBulkProgress({ current: nextOffset, total: totalRows });
+            offset = nextOffset;
+            done = batchDone;
+        }
+
+        setBulkStatus(bulkAbortRef.current ? 'idle' : 'done');
+    };
+
+    const handleBulkStop = () => {
+        bulkAbortRef.current = true;
+        setBulkStatus('idle');
     };
 
     const handleAddEntry = async (e: React.FormEvent) => {
@@ -245,10 +306,103 @@ export default function ClientImportCSVPage({ eventNames = [], festOptions = ['B
                 </CardContent>
             </Card>
 
+            {/* Bulk Upload */}
+            <Card className="glass-card border-purple-500/30 bg-purple-500/5">
+                <CardHeader>
+                    <CardTitle className="text-white/90">Bulk Upload</CardTitle>
+                    <p className="text-sm text-white/50 mt-1">
+                        CSV format: <code className="bg-white/10 px-1 rounded">event_id, user_id, fest</code> (required). 
+                        Optional: <code className="bg-white/10 px-1 rounded">payment_id, transaction_id, ticket_id</code> — auto-generated if empty. 
+                        user_id stored in lowercase.
+                    </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex gap-4">
+                        <label className="cursor-pointer">
+                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition">
+                                <Upload className="w-4 h-4" />
+                                Choose CSV file
+                            </span>
+                            <input type="file" accept=".csv" onChange={handleBulkFileSelect} className="hidden" />
+                        </label>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm text-gray-400">Or paste CSV (event_id, user_id, fest, payment_id?, transaction_id?, ticket_id?)</label>
+                        <textarea
+                            value={bulkCsvContent}
+                            onChange={(e) => setBulkCsvContent(e.target.value)}
+                            placeholder={'event_id,user_id,fest,payment_id,transaction_id,ticket_id\nevt_001,brah_123,BRAHMA,,,\nevt_002,ash_456,ASHWAMEDHA,pay_xyz,tx_abc,tkt_def'}
+                            rows={5}
+                            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/90 font-mono placeholder:text-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                        />
+                    </div>
+                    <div className="flex gap-4">
+                        <Button
+                            onClick={handleBulkUpload}
+                            disabled={bulkStatus === 'running' || !bulkCsvContent.trim()}
+                            className="bg-purple-500 hover:bg-purple-400 text-white font-bold"
+                        >
+                            {bulkStatus === 'running' ? 'Uploading...' : bulkStatus === 'done' ? '✓ Done — Run Again' : 'Start Bulk Upload'}
+                        </Button>
+                        {bulkStatus === 'running' && (
+                            <Button onClick={handleBulkStop} variant="outline" className="border-red-500/50 text-red-400 hover:bg-red-500/10">
+                                Stop
+                            </Button>
+                        )}
+                    </div>
+                    {(bulkStatus === 'running' || bulkStatus === 'done') && bulkProgress.total > 0 && (
+                        <div className="space-y-2">
+                            <div className="flex justify-between text-sm text-white/60">
+                                <span>{bulkStatus === 'done' ? '✓ Complete' : 'Processing...'}</span>
+                                <span>{bulkProgress.current} / {bulkProgress.total} ({Math.round((bulkProgress.current / bulkProgress.total) * 100)}%)</span>
+                            </div>
+                            <div className="w-full bg-gray-700 rounded-full h-3 overflow-hidden">
+                                <div
+                                    className="bg-purple-500 h-full transition-all duration-300 rounded-full"
+                                    style={{ width: `${Math.round((bulkProgress.current / bulkProgress.total) * 100)}%` }}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {(bulkStatus === 'running' || bulkStatus === 'done') && (
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm">
+                            <div className="bg-white/5 rounded p-2 text-center">
+                                <span className="text-green-400 font-bold">{bulkCumulative.ticketsCreated}</span>
+                                <span className="text-white/50 block text-xs">Tickets Created</span>
+                            </div>
+                            <div className="bg-white/5 rounded p-2 text-center">
+                                <span className="text-cyan-400 font-bold">{bulkCumulative.ticketsUpdated}</span>
+                                <span className="text-white/50 block text-xs">Tickets Updated</span>
+                            </div>
+                            <div className="bg-white/5 rounded p-2 text-center">
+                                <span className="text-purple-400 font-bold">{bulkCumulative.transactionsCreated}</span>
+                                <span className="text-white/50 block text-xs">Transactions</span>
+                            </div>
+                            <div className="bg-white/5 rounded p-2 text-center">
+                                <span className="text-blue-400 font-bold">{bulkCumulative.usersUpdated}</span>
+                                <span className="text-white/50 block text-xs">Users Updated</span>
+                            </div>
+                            <div className="bg-white/5 rounded p-2 text-center">
+                                <span className="text-red-400 font-bold">{bulkErrorLog.length}</span>
+                                <span className="text-white/50 block text-xs">Errors</span>
+                            </div>
+                        </div>
+                    )}
+                    {bulkErrorLog.length > 0 && (
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                            {bulkErrorLog.slice(0, 50).map((e, i) => (
+                                <p key={i} className="text-red-300 text-xs font-mono">{e}</p>
+                            ))}
+                            {bulkErrorLog.length > 50 && <p className="text-red-400 text-xs">...and {bulkErrorLog.length - 50} more</p>}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+
             {/* Controls */}
             <Card className="glass-card border-white/10">
                 <CardHeader>
-                    <CardTitle className="text-white/90">Run Import (CSV)</CardTitle>
+                    <CardTitle className="text-white/90">Run Import (combined.csv)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="flex gap-4">

@@ -287,6 +287,165 @@ export async function addCombinedEntry(data: {
     }
 }
 
+/** Bulk upload format: event_id, user_id, fest (required); payment_id, transaction_id, ticket_id (optional, auto-gen) */
+export interface BulkUploadRow {
+    event_id: string;
+    user_id: string;
+    fest: string;
+    payment_id?: string;
+    transaction_id?: string;
+    ticket_id?: string;
+}
+
+function parseBulkUploadCSV(csvContent: string): BulkUploadRow[] {
+    const lines = csvContent.split('\n').filter(l => l.trim());
+    const rows: BulkUploadRow[] = [];
+    const header = (lines[0] || '').toLowerCase();
+    const hasHeader = header.includes('event_id') || header.includes('user_id');
+    const start = hasHeader ? 1 : 0;
+
+    for (let i = start; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => (c || '').trim());
+        const event_id = (cols[0] || '').trim();
+        const user_id = (cols[1] || '').trim().toLowerCase();
+        const fest = (cols[2] || '').trim();
+        const payment_id = (cols[3] || '').trim() || undefined;
+        const transaction_id = (cols[4] || '').trim() || undefined;
+        const ticket_id = (cols[5] || '').trim() || undefined;
+
+        if (!event_id || !user_id || !fest) continue;
+
+        rows.push({ event_id, user_id, fest, payment_id, transaction_id, ticket_id });
+    }
+    return rows;
+}
+
+/** Process a batch of bulk upload rows. Pass csvContent and offset/limit. */
+export async function bulkUploadBatch(
+    csvContent: string,
+    offset: number,
+    limit: number = 100
+): Promise<{
+    result: Partial<ImportResult>;
+    nextOffset: number;
+    done: boolean;
+    totalRows: number;
+    errors: string[];
+}> {
+    const allRows = parseBulkUploadCSV(csvContent);
+    const totalRows = allRows.length;
+    const batch = allRows.slice(offset, offset + limit);
+    const errors: string[] = [];
+    const result: Partial<ImportResult> = {
+        ticketsCreated: 0,
+        ticketsUpdated: 0,
+        transactionsCreated: 0,
+        transactionsSkipped: 0,
+        usersUpdated: 0,
+    };
+
+    // Fetch events for event_id -> event_name mapping
+    const { getFirestoreEvents } = await import('@/actions/firebase');
+    const { events } = await getFirestoreEvents();
+    const eventMap = new Map<string, string>();
+    for (const e of events || []) {
+        const ev = e as { id?: string; event_name?: string };
+        if (ev.id && ev.event_name) eventMap.set(ev.id, ev.event_name);
+        if (ev.event_name) eventMap.set(ev.event_name, ev.event_name);
+    }
+
+    for (const row of batch) {
+        try {
+            const transaction_id = row.transaction_id || randomHexId();
+            const payment_id = row.payment_id || `pay_${randomHexId().toUpperCase()}`;
+            const ticket_id = row.ticket_id || randomHexId();
+            const event_name = eventMap.get(row.event_id) || row.event_id;
+
+            // Upsert ticket
+            const ticketRef = doc(db, 'tickets', ticket_id);
+            const ticketSnap = await getDoc(ticketRef);
+            if (ticketSnap.exists()) {
+                await updateDoc(ticketRef, {
+                    stud_id: arrayUnion(row.user_id),
+                    event_name,
+                    fest: row.fest,
+                    updatedAt: Timestamp.now(),
+                });
+                result.ticketsUpdated!++;
+            } else {
+                await setDoc(ticketRef, {
+                    event_id: row.event_id,
+                    event_name,
+                    fest: row.fest,
+                    stud_id: [row.user_id],
+                    active: true,
+                    team_name: '',
+                    appwriteId: ticket_id,
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
+                });
+                result.ticketsCreated!++;
+            }
+
+            // Transaction
+            const txRef = doc(db, 'transactions', transaction_id);
+            const txSnap = await getDoc(txRef);
+            if (!txSnap.exists()) {
+                await setDoc(txRef, {
+                    stud_id: row.user_id,
+                    ticket_id,
+                    transition_id: payment_id,
+                    payment_id,
+                    transactions_id: transaction_id,
+                    appwriteId: transaction_id,
+                    event_name,
+                    fest: row.fest,
+                    amount: 0,
+                    createdAt: Timestamp.now(),
+                    updatedAt: Timestamp.now(),
+                });
+                result.transactionsCreated!++;
+            } else {
+                result.transactionsSkipped!++;
+            }
+
+            // Combined raw
+            const combinedRef = doc(db, 'combined', transaction_id);
+            await setDoc(combinedRef, {
+                transactions_id: transaction_id,
+                payment_id,
+                event_name,
+                fest: row.fest,
+                student_id: row.user_id,
+                ticket_id,
+                createdAt: Timestamp.now(),
+                updatedAt: Timestamp.now(),
+            });
+
+            // User
+            const userRef = doc(db, 'users', row.user_id);
+            const userSnap = await getDoc(userRef);
+            if (userSnap.exists()) {
+                await updateDoc(userRef, {
+                    tickets: arrayUnion(ticket_id),
+                    updatedAt: Timestamp.now(),
+                });
+                result.usersUpdated!++;
+            }
+        } catch (e: any) {
+            errors.push(`Row ${row.user_id}/${row.event_id}: ${e.message}`);
+        }
+    }
+
+    const nextOffset = offset + batch.length;
+    return { result, nextOffset, done: nextOffset >= totalRows, totalRows, errors };
+}
+
+/** Get total row count from bulk upload CSV without importing */
+export async function getBulkUploadRowCount(csvContent: string): Promise<number> {
+    return parseBulkUploadCSV(csvContent).length;
+}
+
 /** Get total row count from CSV without importing */
 export async function getCSVRowCount(): Promise<number> {
     try {
